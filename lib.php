@@ -1,0 +1,652 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Library of interface functions and constants for mod_aiproofreader.
+ *
+ * @package    mod_aiproofreader
+ * @copyright  2026 Brian Pool
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+
+/**
+ * Returns the Grade + Lexile option list for the mod_form gradelevel dropdown.
+ * Lexile values are the published typical-reader norms for each grade.
+ *
+ * @return array
+ */
+function aiproofreader_gradelexile_options() {
+    $options = [];
+    foreach (aiproofreader_gradelexile_map() as $grade => $lexile) {
+        $options[(string)$grade] = get_string(
+            'gradelexile',
+            'aiproofreader',
+            ['grade' => $grade, 'lexile' => $lexile]
+        );
+    }
+    return $options;
+}
+
+/**
+ * The grade-to-lexile lookup table used both for the settings dropdown and
+ * for building AI prompts later.
+ *
+ * @return array grade (int) => typical lexile measure (int)
+ */
+function aiproofreader_gradelexile_map() {
+    return [
+        3  => 520,
+        4  => 740,
+        5  => 830,
+        6  => 925,
+        7  => 970,
+        8  => 1010,
+        9  => 1050,
+        10 => 1080,
+        11 => 1185,
+        12 => 1185,
+    ];
+}
+
+/**
+ * Looks up the typical lexile measure for a given grade level.
+ *
+ * @param int $grade
+ * @return int|null
+ */
+function aiproofreader_get_lexile_for_grade($grade) {
+    $map = aiproofreader_gradelexile_map();
+    return isset($map[$grade]) ? $map[$grade] : null;
+}
+
+/**
+ * File manager options for the teacher's "Additional files" attachments
+ * (e.g. a lab sheet). Stored at itemid 0 since there is one set per instance.
+ *
+ * @return array
+ */
+function aiproofreader_get_additionalfiles_options() {
+    global $COURSE;
+    return [
+        'subdirs' => 0,
+        'maxbytes' => $COURSE->maxbytes,
+        'maxfiles' => 20,
+        'accepted_types' => '*',
+        'return_types' => FILE_INTERNAL,
+    ];
+}
+
+/**
+ * Builds the submission-type option list (text/file/gdrive) based on which
+ * types are enabled on the instance. Shared by draft_form and final_form.
+ *
+ * @param stdClass $aiproofreader
+ * @return array value => label, in a fixed order
+ */
+function aiproofreader_enabled_type_options($aiproofreader) {
+    $options = [];
+    if (!empty($aiproofreader->submtext)) {
+        $options['text'] = get_string('submtext', 'aiproofreader');
+    }
+    if (!empty($aiproofreader->submfile)) {
+        $options['file'] = get_string('submfile', 'aiproofreader');
+    }
+    if (!empty($aiproofreader->submgdrive)) {
+        $options['gdrive'] = get_string('submgdrive', 'aiproofreader');
+    }
+    return $options;
+}
+
+/**
+ * Wraps content in a collapsible <details> element, styled consistently.
+ *
+ * @param string $title Shown as the clickable summary
+ * @param string $content HTML content
+ * @param bool $open Whether it starts expanded
+ * @return string HTML
+ */
+function aiproofreader_collapsible_section($title, $content, $open = false) {
+    $attrs = ['class' => 'aiproofreader-collapsible generalbox'];
+    if ($open) {
+        $attrs['open'] = 'open';
+    }
+
+    $out = html_writer::start_tag('details', $attrs);
+    $out .= html_writer::tag('summary', $title);
+    $out .= html_writer::div($content, 'aiproofreader-collapsible-content');
+    $out .= html_writer::end_tag('details');
+
+    return $out;
+}
+
+/**
+ * Renders the activity instructions, either as a plain always-visible box
+ * or as a collapsible <details> element.
+ *
+ * @param stdClass $aiproofreader
+ * @param stdClass $cm
+ * @param bool $collapsible False forces the instructions open with no way to collapse them
+ * @return string HTML, or empty string if there is no intro
+ */
+function aiproofreader_render_instructions($aiproofreader, $cm, $collapsible = true) {
+    if (empty($aiproofreader->intro)) {
+        return '';
+    }
+
+    $content = format_module_intro('aiproofreader', $aiproofreader, $cm->id);
+
+    if (!$collapsible) {
+        return html_writer::div($content, 'aiproofreader-instructions generalbox mod_introbox');
+    }
+
+    return aiproofreader_collapsible_section(get_string('activityinstructions', 'aiproofreader'), $content, false);
+}
+
+/**
+ * Builds a download link for a stored draft/final submission file, if one exists.
+ *
+ * @param context_module $context
+ * @param int $itemid The aiproofreader_submission id
+ * @param string $filearea draftsubmission|finalsubmission
+ * @return string HTML link, or empty string if no file is stored
+ */
+function aiproofreader_render_submission_file_link($context, $itemid, $filearea) {
+    $fs = get_file_storage();
+    $files = $fs->get_area_files($context->id, 'mod_aiproofreader', $filearea, $itemid, 'id', false);
+    $file = reset($files);
+
+    if (!$file) {
+        return '';
+    }
+
+    $url = moodle_url::make_pluginfile_url($context->id, 'mod_aiproofreader', $filearea, $itemid, '/', $file->get_filename());
+    return html_writer::link($url, $file->get_filename());
+}
+
+/**
+ * Renders a read-only summary of the student's survey answers, for the grader.
+ * Returns just the content (no heading/wrapper) so callers can wrap it in
+ * their own collapsible section.
+ *
+ * @param stdClass $survey
+ * @return string HTML
+ */
+function aiproofreader_render_student_survey($survey) {
+    $out = html_writer::tag('p', get_string('q1overallfeedback', 'aiproofreader') . ' ' . $survey->q1overallfeedback . '/5');
+    $out .= html_writer::tag('p', get_string('q2specificfeedback', 'aiproofreader') . ' ' . $survey->q2specificfeedback . '/5');
+    $out .= html_writer::tag('p', get_string('q3usedfeedback', 'aiproofreader') . ' ' . $survey->q3usedfeedback . '/5');
+    $out .= html_writer::tag('p', get_string('q4categoryhelped', 'aiproofreader') . ' '
+        . get_string('q4categoryhelped_' . $survey->q4categoryhelped, 'aiproofreader'));
+    $out .= html_writer::tag('p', get_string('q5confidence', 'aiproofreader') . ' ' . $survey->q5confidence . '/5');
+
+    if (!empty($survey->freetext)) {
+        $out .= html_writer::tag('p', html_writer::tag('strong', get_string('freetextlabel', 'aiproofreader'))
+            . ' ' . s($survey->freetext));
+    }
+
+    return $out;
+}
+
+/**
+ * Renders the draft or final submission content (text, file link, or Google Drive link).
+ *
+ * @param context_module $context
+ * @param stdClass $submission
+ * @param string $stage draft|final
+ * @return string HTML
+ */
+function aiproofreader_render_submission_content($context, $submission, $stage) {
+    $type = $stage === 'draft' ? $submission->initialsubmissiontype : $submission->finalsubmissiontype;
+    $text = $stage === 'draft' ? $submission->initialtext : $submission->finaltext;
+    $gdrivelink = $stage === 'draft' ? $submission->initialgdrivelink : $submission->finalgdrivelink;
+    $filearea = $stage === 'draft' ? 'draftsubmission' : 'finalsubmission';
+
+    if ($type === 'gdrive' && !empty($gdrivelink)) {
+        return html_writer::link($gdrivelink, $gdrivelink, ['target' => '_blank', 'rel' => 'noopener']);
+    } else if ($type === 'file') {
+        return aiproofreader_render_submission_file_link($context, $submission->id, $filearea);
+    } else {
+        return html_writer::div(format_text($text, FORMAT_PLAIN), 'generalbox');
+    }
+}
+
+/**
+ * Renders the AI feedback (and AI comparison, once available) for a submission,
+ * each piece as its own collapsible section. Shared between the student view
+ * and the teacher grading page.
+ *
+ * @param stdClass $submission
+ * @return string HTML
+ */
+function aiproofreader_render_feedback_block($submission) {
+    $out = html_writer::tag('h3', get_string('feedbackheading', 'aiproofreader'));
+
+    if (!empty($submission->feedbackgrammar)) {
+        $out .= aiproofreader_collapsible_section(
+            get_string('feedbackgrammarheading', 'aiproofreader'),
+            format_text($submission->feedbackgrammar, FORMAT_PLAIN),
+            true
+        );
+    }
+
+    if (!empty($submission->feedbackassignment)) {
+        $out .= aiproofreader_collapsible_section(
+            get_string('feedbackassignmentheading', 'aiproofreader'),
+            format_text($submission->feedbackassignment, FORMAT_PLAIN),
+            true
+        );
+    }
+
+    if (!empty($submission->aicomparison)) {
+        $out .= aiproofreader_collapsible_section(
+            get_string('aicomparisonheading', 'aiproofreader'),
+            format_text($submission->aicomparison, FORMAT_PLAIN),
+            false
+        );
+    }
+
+    return $out;
+}
+
+/**
+ * Declares which Moodle features this module supports.
+ *
+ * @param string $feature FEATURE_xx constant
+ * @return mixed
+ */
+function aiproofreader_supports($feature) {
+    switch ($feature) {
+        case FEATURE_MOD_INTRO:
+            return true;
+        case FEATURE_SHOW_DESCRIPTION:
+            return true;
+        case FEATURE_BACKUP_MOODLE2:
+            return true;
+        case FEATURE_GRADE_HAS_GRADE:
+            return true;
+        case FEATURE_GRADE_OUTCOMES:
+            return true;
+        case FEATURE_ADVANCED_GRADING:
+            return false;
+        case FEATURE_GROUPS:
+            return false;
+        case FEATURE_GROUPINGS:
+            return false;
+        case FEATURE_COMPLETION_TRACKS_VIEWS:
+            return false;
+        case FEATURE_COMPLETION_HAS_RULES:
+            return true;
+        case FEATURE_MOD_ARCHETYPE:
+            return MOD_ARCHETYPE_OTHER;
+        case FEATURE_MOD_PURPOSE:
+            return MOD_PURPOSE_ASSESSMENT;
+        default:
+            return null;
+    }
+}
+
+/**
+ * Saves a new instance of mod_aiproofreader.
+ *
+ * @param stdClass $aiproofreader
+ * @param mod_aiproofreader_mod_form|null $mform
+ * @return int The new instance id
+ */
+function aiproofreader_add_instance($aiproofreader, $mform = null) {
+    global $DB;
+
+    $aiproofreader->timecreated  = time();
+    $aiproofreader->timemodified = time();
+
+    if (isset($aiproofreader->aiinstructions_editor)) {
+        $aiproofreader->aiinstructions       = $aiproofreader->aiinstructions_editor['text'];
+        $aiproofreader->aiinstructionsformat = $aiproofreader->aiinstructions_editor['format'];
+        unset($aiproofreader->aiinstructions_editor);
+    }
+
+    $aiproofreader->id = $DB->insert_record('aiproofreader', $aiproofreader);
+
+    if ($mform) {
+        $context = context_module::instance($aiproofreader->coursemodule);
+        file_postupdate_standard_filemanager(
+            $aiproofreader,
+            'additionalfiles',
+            aiproofreader_get_additionalfiles_options(),
+            $context,
+            'mod_aiproofreader',
+            'additionalfiles',
+            0
+        );
+    }
+
+    aiproofreader_grade_item_update($aiproofreader);
+
+    return $aiproofreader->id;
+}
+
+/**
+ * Updates an existing instance of mod_aiproofreader.
+ *
+ * @param stdClass $aiproofreader
+ * @param mod_aiproofreader_mod_form|null $mform
+ * @return bool
+ */
+function aiproofreader_update_instance($aiproofreader, $mform = null) {
+    global $DB;
+
+    $aiproofreader->timemodified = time();
+    $aiproofreader->id           = $aiproofreader->instance;
+
+    if (isset($aiproofreader->aiinstructions_editor)) {
+        $aiproofreader->aiinstructions       = $aiproofreader->aiinstructions_editor['text'];
+        $aiproofreader->aiinstructionsformat = $aiproofreader->aiinstructions_editor['format'];
+        unset($aiproofreader->aiinstructions_editor);
+    }
+
+    $result = $DB->update_record('aiproofreader', $aiproofreader);
+
+    if ($mform) {
+        $context = context_module::instance($aiproofreader->coursemodule);
+        file_postupdate_standard_filemanager(
+            $aiproofreader,
+            'additionalfiles',
+            aiproofreader_get_additionalfiles_options(),
+            $context,
+            'mod_aiproofreader',
+            'additionalfiles',
+            0
+        );
+    }
+
+    aiproofreader_grade_item_update($aiproofreader);
+
+    return $result;
+}
+
+/**
+ * Deletes an instance of mod_aiproofreader and all associated student data.
+ *
+ * @param int $id
+ * @return bool
+ */
+function aiproofreader_delete_instance($id) {
+    global $DB;
+
+    if (!$aiproofreader = $DB->get_record('aiproofreader', ['id' => $id])) {
+        return false;
+    }
+
+    $submissionids = $DB->get_fieldset_select('aiproofreader_submission', 'id', 'aiproofreaderid = ?', [$id]);
+
+    if (!empty($submissionids)) {
+        [$insql, $inparams] = $DB->get_in_or_equal($submissionids);
+        $DB->delete_records_select('aiproofreader_studentsurvey', "submissionid $insql", $inparams);
+        $DB->delete_records_select('aiproofreader_teachersurvey', "submissionid $insql", $inparams);
+        $DB->delete_records_select('aiproofreader_grade', "submissionid $insql", $inparams);
+    }
+
+    $DB->delete_records('aiproofreader_submission', ['aiproofreaderid' => $id]);
+    $DB->delete_records('aiproofreader', ['id' => $id]);
+
+    // Remove any stored submission files (draft/final Word documents).
+    if ($cm = get_coursemodule_from_instance('aiproofreader', $id)) {
+        $context = context_module::instance($cm->id);
+        $fs = get_file_storage();
+        $fs->delete_area_files($context->id, 'mod_aiproofreader');
+    }
+
+    aiproofreader_grade_item_update($aiproofreader, 'reset');
+
+    return true;
+}
+
+/**
+ * Creates or updates the gradebook item for a mod_aiproofreader instance.
+ *
+ * @param stdClass $aiproofreader
+ * @param array|stdClass|string|null $grades
+ * @return int GRADE_UPDATE_OK or error code
+ */
+function aiproofreader_grade_item_update($aiproofreader, $grades = null) {
+    global $CFG;
+    require_once($CFG->libdir . '/gradelib.php');
+
+    $params = [
+        'itemname' => clean_param($aiproofreader->name, PARAM_NOTAGS),
+        'gradetype' => GRADE_TYPE_VALUE,
+        'grademax'  => $aiproofreader->grade,
+        'grademin'  => 0,
+    ];
+
+    if (isset($aiproofreader->gradecat)) {
+        $params['categoryid'] = $aiproofreader->gradecat;
+    }
+
+    if (isset($aiproofreader->gradepass) && $aiproofreader->gradepass !== '') {
+        $params['gradepass'] = $aiproofreader->gradepass;
+    }
+
+    if ($grades === 'reset') {
+        $params['reset'] = true;
+        $grades = null;
+    }
+
+    return grade_update(
+        'mod/aiproofreader',
+        $aiproofreader->course,
+        'mod',
+        'aiproofreader',
+        $aiproofreader->id,
+        0,
+        $grades,
+        $params
+    );
+}
+
+/**
+ * Pushes teacher-entered grades from aiproofreader_grade into the gradebook.
+ *
+ * @param stdClass $aiproofreader
+ * @param int $userid 0 = all students
+ * @param bool $nullifnone
+ */
+function aiproofreader_update_grades($aiproofreader, $userid = 0, $nullifnone = true) {
+    global $DB;
+
+    if ($userid) {
+        $sql = "SELECT s.userid, g.grade, g.timemodified
+                  FROM {aiproofreader_submission} s
+                  JOIN {aiproofreader_grade} g ON g.submissionid = s.id
+                 WHERE s.aiproofreaderid = ? AND s.userid = ?";
+        $params = [$aiproofreader->id, $userid];
+    } else {
+        $sql = "SELECT s.userid, g.grade, g.timemodified
+                  FROM {aiproofreader_submission} s
+                  JOIN {aiproofreader_grade} g ON g.submissionid = s.id
+                 WHERE s.aiproofreaderid = ?";
+        $params = [$aiproofreader->id];
+    }
+
+    $records = $DB->get_records_sql($sql, $params);
+
+    $grades = [];
+    foreach ($records as $record) {
+        $grade = new stdClass();
+        $grade->userid     = $record->userid;
+        $grade->rawgrade   = $record->grade;
+        $grade->dategraded = $record->timemodified;
+        $grades[$record->userid] = $grade;
+    }
+
+    if ($userid && empty($grades) && $nullifnone) {
+        $grade = new stdClass();
+        $grade->userid   = $userid;
+        $grade->rawgrade = null;
+        aiproofreader_grade_item_update($aiproofreader, $grade);
+    } else if ($grades) {
+        aiproofreader_grade_item_update($aiproofreader, $grades);
+    } else {
+        aiproofreader_grade_item_update($aiproofreader);
+    }
+}
+
+/**
+ * Adds the AI Proofreader reset option to the course reset form.
+ *
+ * @param MoodleQuickForm $mform
+ */
+function aiproofreader_reset_course_form_definition(&$mform) {
+    $mform->addElement('header', 'aiproofreaderheader', get_string('pluginname', 'aiproofreader'));
+    $mform->addElement(
+        'checkbox',
+        'reset_aiproofreader_submissions',
+        get_string('resetsubmissions', 'aiproofreader')
+    );
+}
+
+/**
+ * Default values for the course reset form.
+ *
+ * @param stdClass $course
+ * @return array
+ */
+function aiproofreader_reset_course_form_defaults($course) {
+    return ['reset_aiproofreader_submissions' => 1];
+}
+
+/**
+ * Deletes all student submissions, surveys, and grades for a course reset.
+ *
+ * @param stdClass $data
+ * @return array
+ */
+function aiproofreader_reset_userdata($data) {
+    global $DB;
+
+    $status = [];
+    $componentstr = get_string('pluginname', 'aiproofreader');
+
+    if (!empty($data->reset_aiproofreader_submissions)) {
+        $instanceids = $DB->get_fieldset_select('aiproofreader', 'id', 'course = ?', [$data->courseid]);
+
+        if (!empty($instanceids)) {
+            [$insql, $inparams] = $DB->get_in_or_equal($instanceids);
+
+            $submissionids = $DB->get_fieldset_select(
+                'aiproofreader_submission',
+                'id',
+                "aiproofreaderid $insql",
+                $inparams
+            );
+
+            if (!empty($submissionids)) {
+                [$subsql, $subparams] = $DB->get_in_or_equal($submissionids);
+                $DB->delete_records_select('aiproofreader_studentsurvey', "submissionid $subsql", $subparams);
+                $DB->delete_records_select('aiproofreader_teachersurvey', "submissionid $subsql", $subparams);
+                $DB->delete_records_select('aiproofreader_grade', "submissionid $subsql", $subparams);
+
+                // Remove stored submission files for each instance in this course.
+                $fs = get_file_storage();
+                foreach ($instanceids as $instanceid) {
+                    if ($cm = get_coursemodule_from_instance('aiproofreader', $instanceid)) {
+                        $context = context_module::instance($cm->id);
+                        $fs->delete_area_files($context->id, 'mod_aiproofreader');
+                    }
+                }
+            }
+
+            $DB->delete_records_select('aiproofreader_submission', "aiproofreaderid $insql", $inparams);
+        }
+
+        $status[] = [
+            'component' => $componentstr,
+            'item'      => get_string('resetsubmissions', 'aiproofreader'),
+            'error'     => false,
+        ];
+    }
+
+    return $status;
+}
+
+/**
+ * Serves files from the draftsubmission and finalsubmission file areas.
+ *
+ * @param stdClass $course
+ * @param stdClass $cm
+ * @param context $context
+ * @param string $filearea
+ * @param array $args
+ * @param bool $forcedownload
+ * @param array $options
+ * @return bool
+ */
+function mod_aiproofreader_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    global $DB, $USER;
+
+    if ($context->contextlevel != CONTEXT_MODULE) {
+        return false;
+    }
+
+    if (!in_array($filearea, ['draftsubmission', 'finalsubmission', 'additionalfiles'])) {
+        return false;
+    }
+
+    require_login($course, false, $cm);
+
+    if ($filearea === 'additionalfiles') {
+        require_capability('mod/aiproofreader:view', $context);
+
+        $itemid = array_shift($args); // Always 0.
+        $filename = array_pop($args);
+        $filepath = '/';
+
+        $fs = get_file_storage();
+        $file = $fs->get_file($context->id, 'mod_aiproofreader', $filearea, $itemid, $filepath, $filename);
+
+        if (!$file || $file->is_directory()) {
+            return false;
+        }
+
+        send_stored_file($file, 86400, 0, $forcedownload, $options);
+        return;
+    }
+
+    $itemid = array_shift($args);
+
+    $submission = $DB->get_record('aiproofreader_submission', ['id' => $itemid], '*', MUST_EXIST);
+
+    // Only the owning student, or a grader, may download these files.
+    if (
+        $submission->userid != $USER->id
+            && !has_capability('mod/aiproofreader:viewallsubmissions', $context)
+            && !has_capability('mod/aiproofreader:grade', $context)
+    ) {
+        return false;
+    }
+
+    $filename = array_pop($args);
+    $filepath = '/';
+
+    $fs = get_file_storage();
+    $file = $fs->get_file($context->id, 'mod_aiproofreader', $filearea, $itemid, $filepath, $filename);
+
+    if (!$file || $file->is_directory()) {
+        return false;
+    }
+
+    send_stored_file($file, 86400, 0, $forcedownload, $options);
+}

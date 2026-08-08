@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/aiproofreader/db" VERSION="20260807" COMMENT="XMLDB file for Moodle mod/aiproofreader"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="aiproofreader" COMMENT="AI Proofreader activity instances">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course ID"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Activity name"/>
+        <FIELD NAME="intro" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Activity instructions (primary AI instructions)"/>
+        <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Format of intro field"/>
+        <FIELD NAME="allowsubmissionsfromdate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Submissions open from"/>
+        <FIELD NAME="duedate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Due date"/>
+        <FIELD NAME="cutoffdate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Cut-off date, no submissions accepted after"/>
+        <FIELD NAME="gradelevel" TYPE="char" LENGTH="2" NOTNULL="true" DEFAULT="9" SEQUENCE="false" COMMENT="Grade level for AI feedback (3-12); also determines the target lexile via a lookup table in lib.php"/>
+        <FIELD NAME="aiinstructions" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Additional AI-only instructions from the teacher"/>
+        <FIELD NAME="aiinstructionsformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Format of aiinstructions field"/>
+        <FIELD NAME="submtext" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Online text submission enabled"/>
+        <FIELD NAME="submfile" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="File submission (Word only) enabled"/>
+        <FIELD NAME="submgdrive" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Google Drive link submission enabled"/>
+        <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="100" SEQUENCE="false" COMMENT="Maximum points for this activity"/>
+        <FIELD NAME="hidegrader" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Hide grader identity from students"/>
+        <FIELD NAME="completionsubmit" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Completion requires final submission"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="course" TYPE="foreign" FIELDS="course" REFTABLE="course" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="aiproofreader_submission" COMMENT="One row per student per activity instance">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="aiproofreaderid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="draft" SEQUENCE="false" COMMENT="draft, feedbackpending, feedbackready, finalsubmitted, graded"/>
+        <FIELD NAME="initialsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
+        <FIELD NAME="initialtext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Draft online text submission"/>
+        <FIELD NAME="initialgdrivelink" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="initialtimesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="feedbackgrammar" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI feedback: Grammar and Spelling"/>
+        <FIELD NAME="feedbackassignment" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI feedback: Assignment Specifics"/>
+        <FIELD NAME="feedbacktimecreated" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="finalsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
+        <FIELD NAME="finaltext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Final online text submission"/>
+        <FIELD NAME="finalgdrivelink" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="finaltimesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="aicomparison" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI analysis of whether feedback was followed"/>
+        <FIELD NAME="aicomparisontimecreated" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="aifollowedscore" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated 1-5 score of how well the student followed the feedback, for the teacher"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="aiproofreaderid" TYPE="foreign" FIELDS="aiproofreaderid" REFTABLE="aiproofreader" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="aiproofreaderid-userid" UNIQUE="true" FIELDS="aiproofreaderid, userid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="aiproofreader_studentsurvey" COMMENT="Student survey, required before final submission is accepted">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="submissionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="q1overallfeedback" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: overall feedback useful"/>
+        <FIELD NAME="q2specificfeedback" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: assignment-specific feedback useful"/>
+        <FIELD NAME="q3usedfeedback" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: used feedback to improve submission"/>
+        <FIELD NAME="q4categoryhelped" TYPE="char" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="grammar, assignment, or both"/>
+        <FIELD NAME="q5confidence" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: confidence in final vs draft"/>
+        <FIELD NAME="freetext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Optional: what did the AI feedback miss"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="aiproofreader_submission" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="submissionid" UNIQUE="true" FIELDS="submissionid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="aiproofreader_teachersurvey" COMMENT="Teacher survey, required before a grade is accepted">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="submissionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="graderid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="q1overallfeedback" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: overall feedback useful"/>
+        <FIELD NAME="q2specificfeedback" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: assignment-specific feedback useful"/>
+        <FIELD NAME="q3usedfeedback" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: did student use the feedback"/>
+        <FIELD NAME="q4feedbackfollowed" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: was the feedback followed"/>
+        <FIELD NAME="q5aiscaffold" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: did the AI help scaffold the student"/>
+        <FIELD NAME="q6aiaccuracy" TYPE="int" LENGTH="2" NOTNULL="true" SEQUENCE="false" COMMENT="1-5: was AI feedback accurate for this assignment"/>
+        <FIELD NAME="freetext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Optional: concerns about the AI feedback"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="aiproofreader_submission" REFFIELDS="id"/>
+        <KEY NAME="graderid" TYPE="foreign" FIELDS="graderid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="submissionid" UNIQUE="true" FIELDS="submissionid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="aiproofreader_grade" COMMENT="Teacher-entered grade and instructor comments">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="submissionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="graderid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Points awarded"/>
+        <FIELD NAME="instructorcomments" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="instructorcommentsformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="aiproofreader_submission" REFFIELDS="id"/>
+        <KEY NAME="graderid" TYPE="foreign" FIELDS="graderid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="submissionid" UNIQUE="true" FIELDS="submissionid"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>
