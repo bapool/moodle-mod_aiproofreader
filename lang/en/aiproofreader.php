@@ -178,14 +178,6 @@ Assignment-specific feedback given:
 
 Final version:
 {$a->final}';
-$string['aiprompt_topiccheck'] = 'Assignment instructions:
-{$a->activityinstructions}
-
-Student writing:
-{$a->studenttext}
-
-Does this writing address the assignment topic above, even loosely? Compare the specific subject matter of the writing to the specific subject matter of the assignment - being well-written, reflective, or educational in nature does not count if the actual topic does not match what the assignment asked for. Judge subject matter only - completely ignore spelling and grammar quality. A misspelled technical term (like "cemical" for "chemical") still counts as addressing the topic; poor spelling or grammar is never evidence of being off-topic. Answer with EXACTLY one word: YES or NO. Do not explain your answer, do not add any other text or punctuation.';
-$string['aicomparisonofftopicnote'] = 'Note: an independent check found that the final version does not appear to address the assignment.';
 
 // settings.php strings.
 $string['defaultaiinstructions'] = 'Default AI instructions';
@@ -273,6 +265,8 @@ IMPORTANT FEEDBACK REMINDERS:
 * Your goal is to help the student produce a stronger final submission while learning how to improve their own writing.
 EOT;
 $string['noaiproofreaders'] = 'There are no AI Proofreader activities in this course.';
+$string['settings_surveyheading'] = 'Survey settings';
+$string['settings_surveyheading_desc'] = 'The survey on/off switch, individual question wording, and which questions are collected are all configured from the AI Proofreader Report plugin (Site administration &rarr; Plugins &rarr; Local plugins &rarr; AI Proofreader Report settings), not here. That plugin is where survey data is also reported on, so its settings page keeps everything survey-related in one place.';
 
 // Privacy API strings.
 $string['privacy:metadata:aiproofreader_submission'] = 'A student\'s draft and final submission, AI feedback, and AI comparison for one AI Proofreader activity.';
@@ -283,10 +277,12 @@ $string['privacy:metadata:aiproofreader_submission:initialgdrivelink'] = 'The st
 $string['privacy:metadata:aiproofreader_submission:initialtimesubmitted'] = 'When the draft was submitted.';
 $string['privacy:metadata:aiproofreader_submission:feedbackgrammar'] = 'AI-generated Grammar and Spelling feedback on the draft.';
 $string['privacy:metadata:aiproofreader_submission:feedbackassignment'] = 'AI-generated Assignment Specifics feedback on the draft.';
+$string['privacy:metadata:aiproofreader_submission:feedbackaimodel'] = 'Label identifying the AI model/provider that generated the feedback.';
 $string['privacy:metadata:aiproofreader_submission:finaltext'] = 'The student\'s final submitted text.';
 $string['privacy:metadata:aiproofreader_submission:finalgdrivelink'] = 'The student\'s final Google Drive link, if that submission type was used.';
 $string['privacy:metadata:aiproofreader_submission:finaltimesubmitted'] = 'When the final version was submitted.';
 $string['privacy:metadata:aiproofreader_submission:aicomparison'] = 'AI-generated comparison of the draft, feedback, and final version.';
+$string['privacy:metadata:aiproofreader_submission:comparisonaimodel'] = 'Label identifying the AI model/provider that generated the comparison.';
 $string['privacy:metadata:aiproofreader_submission:aifollowedscore'] = 'AI-generated 1-5 score of how well the student followed the feedback.';
 $string['privacy:metadata:aiproofreader_submission:timecreated'] = 'When this submission record was created.';
 $string['privacy:metadata:aiproofreader_studentsurvey'] = 'The student\'s required survey answers about the AI feedback, given before their final submission is accepted.';

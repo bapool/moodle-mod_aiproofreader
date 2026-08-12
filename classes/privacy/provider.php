@@ -44,10 +44,9 @@ use core_privacy\local\request\transform;
  * comments stay intact, just no longer attributed to a specific grader.
  */
 class provider implements
-        \core_privacy\local\metadata\provider,
-        \core_privacy\local\request\plugin\provider,
-        \core_privacy\local\request\core_userlist_provider {
-
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Describes what personal data this plugin stores.
      *
@@ -65,10 +64,12 @@ class provider implements
                 'initialtimesubmitted' => 'privacy:metadata:aiproofreader_submission:initialtimesubmitted',
                 'feedbackgrammar' => 'privacy:metadata:aiproofreader_submission:feedbackgrammar',
                 'feedbackassignment' => 'privacy:metadata:aiproofreader_submission:feedbackassignment',
+                'feedbackaimodel' => 'privacy:metadata:aiproofreader_submission:feedbackaimodel',
                 'finaltext' => 'privacy:metadata:aiproofreader_submission:finaltext',
                 'finalgdrivelink' => 'privacy:metadata:aiproofreader_submission:finalgdrivelink',
                 'finaltimesubmitted' => 'privacy:metadata:aiproofreader_submission:finaltimesubmitted',
                 'aicomparison' => 'privacy:metadata:aiproofreader_submission:aicomparison',
+                'comparisonaimodel' => 'privacy:metadata:aiproofreader_submission:comparisonaimodel',
                 'aifollowedscore' => 'privacy:metadata:aiproofreader_submission:aifollowedscore',
                 'timecreated' => 'privacy:metadata:aiproofreader_submission:timecreated',
             ],
@@ -170,21 +171,27 @@ class provider implements
             return;
         }
 
-        $userlist->add_from_sql('userid',
+        $userlist->add_from_sql(
+            'userid',
             "SELECT userid FROM {aiproofreader_submission} WHERE aiproofreaderid = :instanceid",
-            ['instanceid' => $cm->instance]);
+            ['instanceid' => $cm->instance]
+        );
 
-        $userlist->add_from_sql('graderid',
+        $userlist->add_from_sql(
+            'graderid',
             "SELECT g.graderid FROM {aiproofreader_submission} s
               JOIN {aiproofreader_grade} g ON g.submissionid = s.id
              WHERE s.aiproofreaderid = :instanceid",
-            ['instanceid' => $cm->instance]);
+            ['instanceid' => $cm->instance]
+        );
 
-        $userlist->add_from_sql('graderid',
+        $userlist->add_from_sql(
+            'graderid',
             "SELECT ts.graderid FROM {aiproofreader_submission} s
               JOIN {aiproofreader_teachersurvey} ts ON ts.submissionid = s.id
              WHERE s.aiproofreaderid = :instanceid",
-            ['instanceid' => $cm->instance]);
+            ['instanceid' => $cm->instance]
+        );
     }
 
     /**
@@ -211,8 +218,10 @@ class provider implements
                 continue;
             }
 
-            $submission = $DB->get_record('aiproofreader_submission',
-                ['aiproofreaderid' => $cm->instance, 'userid' => $user->id]);
+            $submission = $DB->get_record(
+                'aiproofreader_submission',
+                ['aiproofreaderid' => $cm->instance, 'userid' => $user->id]
+            );
 
             if ($submission) {
                 $data = (object) [
@@ -224,26 +233,39 @@ class provider implements
                         ? transform::datetime($submission->initialtimesubmitted) : null,
                     'feedbackgrammar' => $submission->feedbackgrammar,
                     'feedbackassignment' => $submission->feedbackassignment,
+                    'feedbackaimodel' => $submission->feedbackaimodel,
                     'finalsubmissiontype' => $submission->finalsubmissiontype,
                     'finaltext' => $submission->finaltext,
                     'finalgdrivelink' => $submission->finalgdrivelink,
                     'finaltimesubmitted' => $submission->finaltimesubmitted
                         ? transform::datetime($submission->finaltimesubmitted) : null,
                     'aicomparison' => $submission->aicomparison,
+                    'comparisonaimodel' => $submission->comparisonaimodel,
                     'aifollowedscore' => $submission->aifollowedscore,
                 ];
 
-                writer::with_context($context)->export_data([get_string('pluginname', 'mod_aiproofreader')], $data);
+                $pluginname = get_string('pluginname', 'mod_aiproofreader');
+
+                writer::with_context($context)->export_data([$pluginname], $data);
 
                 writer::with_context($context)->export_area_files(
-                    [get_string('pluginname', 'mod_aiproofreader')], 'mod_aiproofreader', 'draftsubmission', $submission->id);
+                    [$pluginname],
+                    'mod_aiproofreader',
+                    'draftsubmission',
+                    $submission->id
+                );
                 writer::with_context($context)->export_area_files(
-                    [get_string('pluginname', 'mod_aiproofreader')], 'mod_aiproofreader', 'finalsubmission', $submission->id);
+                    [$pluginname],
+                    'mod_aiproofreader',
+                    'finalsubmission',
+                    $submission->id
+                );
 
                 $survey = $DB->get_record('aiproofreader_studentsurvey', ['submissionid' => $submission->id]);
                 if ($survey) {
+                    $studentsurveyheading = get_string('studentsurveyheading', 'mod_aiproofreader');
                     writer::with_context($context)->export_data(
-                        [get_string('pluginname', 'mod_aiproofreader'), get_string('studentsurveyheading', 'mod_aiproofreader')],
+                        [$pluginname, $studentsurveyheading],
                         (object) [
                             'q1overallfeedback' => $survey->q1overallfeedback,
                             'q2specificfeedback' => $survey->q2specificfeedback,
@@ -257,8 +279,9 @@ class provider implements
 
                 $grade = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]);
                 if ($grade) {
+                    $gradedheading = get_string('gradedheading', 'mod_aiproofreader');
                     writer::with_context($context)->export_data(
-                        [get_string('pluginname', 'mod_aiproofreader'), get_string('gradedheading', 'mod_aiproofreader')],
+                        [$pluginname, $gradedheading],
                         (object) [
                             'grade' => $grade->grade,
                             'instructorcomments' => $grade->instructorcomments,
@@ -275,8 +298,10 @@ class provider implements
             $gradesgiven = $DB->get_records_sql($sql, ['instanceid' => $cm->instance, 'graderid' => $user->id]);
 
             foreach ($gradesgiven as $g) {
+                $pluginname = get_string('pluginname', 'mod_aiproofreader');
+                $gradesgivenheading = get_string('privacy:gradesgiven', 'mod_aiproofreader');
                 writer::with_context($context)->export_data(
-                    [get_string('pluginname', 'mod_aiproofreader'), get_string('privacy:gradesgiven', 'mod_aiproofreader')],
+                    [$pluginname, $gradesgivenheading],
                     (object) [
                         'grade' => $g->grade,
                         'instructorcomments' => $g->instructorcomments,
@@ -307,7 +332,7 @@ class provider implements
         $submissionids = $DB->get_fieldset_select('aiproofreader_submission', 'id', 'aiproofreaderid = ?', [$cm->instance]);
 
         if (!empty($submissionids)) {
-            list($insql, $inparams) = $DB->get_in_or_equal($submissionids);
+            [$insql, $inparams] = $DB->get_in_or_equal($submissionids);
             $DB->delete_records_select('aiproofreader_studentsurvey', "submissionid $insql", $inparams);
             $DB->delete_records_select('aiproofreader_teachersurvey', "submissionid $insql", $inparams);
             $DB->delete_records_select('aiproofreader_grade', "submissionid $insql", $inparams);
@@ -340,8 +365,10 @@ class provider implements
                 continue;
             }
 
-            $submission = $DB->get_record('aiproofreader_submission',
-                ['aiproofreaderid' => $cm->instance, 'userid' => $user->id]);
+            $submission = $DB->get_record(
+                'aiproofreader_submission',
+                ['aiproofreaderid' => $cm->instance, 'userid' => $user->id]
+            );
 
             if ($submission) {
                 $DB->delete_records('aiproofreader_studentsurvey', ['submissionid' => $submission->id]);
@@ -356,14 +383,28 @@ class provider implements
 
             // Anonymize this user's grader reference on any other student's submission, rather
             // than deleting that student's grade and comments.
-            $submissionids = $DB->get_fieldset_select('aiproofreader_submission', 'id', 'aiproofreaderid = ?',
-                [$cm->instance]);
+            $submissionids = $DB->get_fieldset_select(
+                'aiproofreader_submission',
+                'id',
+                'aiproofreaderid = ?',
+                [$cm->instance]
+            );
             if (!empty($submissionids)) {
-                list($insql, $inparams) = $DB->get_in_or_equal($submissionids);
-                $DB->set_field_select('aiproofreader_grade', 'graderid', 0, "graderid = ? AND submissionid $insql",
-                    array_merge([$user->id], $inparams));
-                $DB->set_field_select('aiproofreader_teachersurvey', 'graderid', 0, "graderid = ? AND submissionid $insql",
-                    array_merge([$user->id], $inparams));
+                [$insql, $inparams] = $DB->get_in_or_equal($submissionids);
+                $DB->set_field_select(
+                    'aiproofreader_grade',
+                    'graderid',
+                    0,
+                    "graderid = ? AND submissionid $insql",
+                    array_merge([$user->id], $inparams)
+                );
+                $DB->set_field_select(
+                    'aiproofreader_teachersurvey',
+                    'graderid',
+                    0,
+                    "graderid = ? AND submissionid $insql",
+                    array_merge([$user->id], $inparams)
+                );
             }
         }
     }
@@ -391,10 +432,13 @@ class provider implements
             return;
         }
 
-        list($usersql, $userparams) = $DB->get_in_or_equal($userids);
+        [$usersql, $userparams] = $DB->get_in_or_equal($userids);
 
-        $submissions = $DB->get_records_select('aiproofreader_submission',
-            "aiproofreaderid = ? AND userid $usersql", array_merge([$cm->instance], $userparams));
+        $submissions = $DB->get_records_select(
+            'aiproofreader_submission',
+            "aiproofreaderid = ? AND userid $usersql",
+            array_merge([$cm->instance], $userparams)
+        );
 
         $fs = get_file_storage();
         foreach ($submissions as $submission) {
@@ -405,16 +449,29 @@ class provider implements
             $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalsubmission', $submission->id);
         }
 
-        $DB->delete_records_select('aiproofreader_submission',
-            "aiproofreaderid = ? AND userid $usersql", array_merge([$cm->instance], $userparams));
+        $DB->delete_records_select(
+            'aiproofreader_submission',
+            "aiproofreaderid = ? AND userid $usersql",
+            array_merge([$cm->instance], $userparams)
+        );
 
         $remainingids = $DB->get_fieldset_select('aiproofreader_submission', 'id', 'aiproofreaderid = ?', [$cm->instance]);
         if (!empty($remainingids)) {
-            list($subsql, $subparams) = $DB->get_in_or_equal($remainingids);
-            $DB->set_field_select('aiproofreader_grade', 'graderid', 0,
-                "graderid $usersql AND submissionid $subsql", array_merge($userparams, $subparams));
-            $DB->set_field_select('aiproofreader_teachersurvey', 'graderid', 0,
-                "graderid $usersql AND submissionid $subsql", array_merge($userparams, $subparams));
+            [$subsql, $subparams] = $DB->get_in_or_equal($remainingids);
+            $DB->set_field_select(
+                'aiproofreader_grade',
+                'graderid',
+                0,
+                "graderid $usersql AND submissionid $subsql",
+                array_merge($userparams, $subparams)
+            );
+            $DB->set_field_select(
+                'aiproofreader_teachersurvey',
+                'graderid',
+                0,
+                "graderid $usersql AND submissionid $subsql",
+                array_merge($userparams, $subparams)
+            );
         }
     }
 }

@@ -70,12 +70,12 @@ if ($mform->is_cancelled()) {
 
 if ($data = $mform->get_data()) {
     $surveydata = [
-        'q1overallfeedback' => $data->q1overallfeedback,
-        'q2specificfeedback' => $data->q2specificfeedback,
-        'q3usedfeedback' => $data->q3usedfeedback,
-        'q4feedbackfollowed' => $data->q4feedbackfollowed,
-        'q5aiscaffold' => $data->q5aiscaffold,
-        'q6aiaccuracy' => $data->q6aiaccuracy,
+        'q1overallfeedback' => $data->q1overallfeedback ?? null,
+        'q2specificfeedback' => $data->q2specificfeedback ?? null,
+        'q3usedfeedback' => $data->q3usedfeedback ?? null,
+        'q4feedbackfollowed' => $data->q4feedbackfollowed ?? null,
+        'q5aiscaffold' => $data->q5aiscaffold ?? null,
+        'q6aiaccuracy' => $data->q6aiaccuracy ?? null,
         'freetext' => $data->freetext ?? '',
     ];
 

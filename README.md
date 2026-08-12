@@ -9,9 +9,9 @@ Built for National Trail Local Schools as part of the K-12 AI Infrastructure Pro
 1. The teacher creates an AI Proofreader activity with assignment instructions, a grade level, and optional additional AI instructions (a private field only the AI sees - useful for a rubric's key points or specific concepts a strong answer should cover).
 2. The student submits a draft (typed text, an uploaded Word document, or a Google Drive link).
 3. The AI generates feedback split into two parts: **Grammar and Spelling**, and **Assignment Specifics** - calibrated to the student's grade level and target reading level (Lexile).
-4. The student completes a short required survey, then submits a final version.
+4. If surveys are turned on (see below), the student completes a short survey, then submits a final version. If surveys are off, the student just submits a final version.
 5. The AI compares the draft, the feedback, and the final version, and generates a 1-5 score for the teacher on how well the student incorporated the feedback - weighted so it doesn't penalize students for skipping feedback that was optional depth versus something that was actually required.
-6. The teacher reviews everything (draft, feedback, final, AI comparison, the student's survey answers) side by side, completes a short required survey of their own, and enters a grade.
+6. The teacher reviews everything (draft, feedback, final, AI comparison, and the student's survey answers if surveys are on), completes a short survey of their own if surveys are on, and enters a grade.
 
 ## Requirements
 
@@ -23,6 +23,7 @@ Built for National Trail Local Schools as part of the K-12 AI Infrastructure Pro
 1. Copy the `aiproofreader` folder into `mod/` in your Moodle codebase.
 2. Visit **Site Administration -> Notifications** to complete the install.
 3. Optionally review **Site Administration -> Plugins -> Activity modules -> AI Proofreader** to adjust the default AI instructions (the base proofreading philosophy and response format sent to the AI for every instance on the site).
+4. Install **local_aiproofreaderreport** (a separate, required companion plugin - see its own README) to turn on surveys, customize survey questions, control Google Doc text retention, and see usage/survey reporting. AI Proofreader will not install without it already present, or upgrade past it.
 
 ## Settings overview
 
@@ -34,13 +35,17 @@ Each activity instance has its own:
 - **Submission types** - online text, Word file upload, and/or a Google Drive link (at least one required)
 - Standard availability, grade (points, category, pass grade), and completion settings
 
+Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from this plugin):
+- **Survey on/off** - off by default. While off, no survey questions are shown to anyone, and this plugin runs in feedback-only mode.
+- **Per-question show/hide and custom wording** - for each of the 5 student and 6 teacher survey questions (plus each side's free-text box).
+- **Google Doc text retention** - off by default. The text of a submitted Google Doc is always fetched briefly so the AI can process it, then cleared back to just the link afterward unless this is turned on.
+
 ## Known limitations
 
-- No `classes/privacy/provider.php` yet - the plugin stores personal data (submissions, survey responses, grades) but does not yet implement Moodle's Privacy API. This should be added before public submission to the Moodle plugins directory.
-- No `index.php` (the "view all AI Proofreader activities in this course" listing page).
 - No automated PHPUnit or Behat tests.
 - The "Hide grader identity from students" setting is stored but not yet enforced anywhere in the UI, since nothing currently displays grader identity to students in the first place.
 - Google Drive submissions require the document to be shared as "Anyone with the link can view" (or comment/edit) - the plugin cannot read privately-shared docs and will reject the submission at the form-validation stage if it can't read the content.
+- A draft that's abandoned before final submission (student never finishes) can leave fetched Google Doc text sitting in `initialtext` even with text retention off, since that text is only purged once the final-submission AI comparison step runs. The weekly cleanup task in local_aiproofreaderreport will eventually remove the whole submission row if the activity or student account is later deleted, but does not otherwise sweep abandoned drafts on a timer.
 
 ## License
 
@@ -95,12 +100,14 @@ One row per student per activity instance (no multiple attempts). Unique on (`ai
 | `feedbackgrammar` | text | AI feedback: Grammar and Spelling |
 | `feedbackassignment` | text | AI feedback: Assignment Specifics |
 | `feedbacktimecreated` | int | Unix timestamp |
+| `feedbackaimodel` | char(255) | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
 | `finalsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
 | `finaltext` | text | Final text, same sourcing as `initialtext` |
 | `finalgdrivelink` | char(255) | Final Google Drive link, if that type was used |
 | `finaltimesubmitted` | int | Unix timestamp |
 | `aicomparison` | text | AI's narrative comparison of draft vs. feedback vs. final, shown to both student and teacher |
 | `aicomparisontimecreated` | int | Unix timestamp |
+| `comparisonaimodel` | char(255) | Label identifying the AI model/provider that generated the comparison - see "AI model tracking" below |
 | `aifollowedscore` | int(2) | AI-generated 1-5 score of how well the student incorporated the feedback - teacher-only |
 | `timecreated` | int | Unix timestamp |
 | `timemodified` | int | Unix timestamp |

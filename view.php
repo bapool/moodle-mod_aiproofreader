@@ -27,6 +27,7 @@ require_once($CFG->dirroot . '/mod/aiproofreader/lib.php');
 
 $id = optional_param('id', 0, PARAM_INT);
 $retry = optional_param('retry', 0, PARAM_BOOL);
+$groupid = optional_param('groupid', 0, PARAM_INT);
 
 if ($id) {
     $cm = get_coursemodule_from_id('aiproofreader', $id, 0, false, MUST_EXIST);
@@ -49,7 +50,7 @@ $event->add_record_snapshot('course', $course);
 $event->add_record_snapshot('aiproofreader', $aiproofreader);
 $event->trigger();
 
-$PAGE->set_url('/mod/aiproofreader/view.php', ['id' => $cm->id]);
+$PAGE->set_url('/mod/aiproofreader/view.php', ['id' => $cm->id, 'groupid' => $groupid]);
 $PAGE->set_title(format_string($aiproofreader->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
@@ -97,11 +98,11 @@ if (!$isgrader) {
 
         if ($data = $finalform->get_data()) {
             $surveydata = [
-                'q1overallfeedback' => $data->q1overallfeedback,
-                'q2specificfeedback' => $data->q2specificfeedback,
-                'q3usedfeedback' => $data->q3usedfeedback,
-                'q4categoryhelped' => $data->q4categoryhelped,
-                'q5confidence' => $data->q5confidence,
+                'q1overallfeedback' => $data->q1overallfeedback ?? null,
+                'q2specificfeedback' => $data->q2specificfeedback ?? null,
+                'q3usedfeedback' => $data->q3usedfeedback ?? null,
+                'q4categoryhelped' => $data->q4categoryhelped ?? null,
+                'q5confidence' => $data->q5confidence ?? null,
                 'freetext' => $data->freetext ?? '',
             ];
 
@@ -152,7 +153,39 @@ if ($isgrader) {
     // Minimal read-only overview for now; the full grading page is next.
     echo $OUTPUT->heading(get_string('teacheroverviewheading', 'aiproofreader'), 3);
 
+    $groups = groups_get_all_groups($course->id);
+
+    if (!empty($groups)) {
+        echo html_writer::start_tag('form', ['method' => 'get', 'class' => 'aiproofreader-groupfilter form-inline mb-3']);
+        echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $cm->id]);
+
+        $groupoptions = [0 => get_string('allparticipants')];
+        foreach ($groups as $group) {
+            $groupoptions[$group->id] = format_string($group->name);
+        }
+
+        echo html_writer::tag(
+            'label',
+            get_string('group') . ' ',
+            ['for' => 'aiproofreader-groupid', 'class' => 'mr-2']
+        );
+        echo html_writer::select(
+            $groupoptions,
+            'groupid',
+            $groupid,
+            null,
+            ['id' => 'aiproofreader-groupid', 'onchange' => 'this.form.submit()']
+        );
+        echo html_writer::end_tag('form');
+    }
+
     $students = get_enrolled_users($context, 'mod/aiproofreader:submit', 0, 'u.*', null, 0, 0, true);
+
+    if (!empty($groupid)) {
+        $groupmemberids = groups_get_members($groupid, 'u.id');
+        $students = array_intersect_key($students, $groupmemberids);
+    }
+
     $submissionrecords = $DB->get_records('aiproofreader_submission', ['aiproofreaderid' => $aiproofreader->id]);
 
     $byuserid = [];

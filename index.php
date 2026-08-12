@@ -27,20 +27,20 @@ require_once($CFG->dirroot . '/mod/aiproofreader/lib.php');
 
 $id = required_param('id', PARAM_INT);
 
-$course = $DB->get_record('course', array('id' => $id), '*', MUST_EXIST);
+$course = $DB->get_record('course', ['id' => $id], '*', MUST_EXIST);
 
 require_course_login($course);
 
 $context = context_course::instance($course->id);
 
-$event = \core\event\course_module_instance_list_viewed::create(array(
+$event = \core\event\course_module_instance_list_viewed::create([
     'context' => $context,
     'courseid' => $course->id,
-));
+]);
 $event->add_record_snapshot('course', $course);
 $event->trigger();
 
-$PAGE->set_url('/mod/aiproofreader/index.php', array('id' => $id));
+$PAGE->set_url('/mod/aiproofreader/index.php', ['id' => $id]);
 $PAGE->set_title(format_string($course->shortname) . ': ' . get_string('modulenameplural', 'aiproofreader'));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
@@ -51,12 +51,12 @@ echo $OUTPUT->heading(get_string('modulenameplural', 'aiproofreader'));
 $aiproofreaders = get_all_instances_in_course('aiproofreader', $course);
 
 if (empty($aiproofreaders)) {
-    notice(get_string('noaiproofreaders', 'aiproofreader'), new moodle_url('/course/view.php', array('id' => $course->id)));
+    notice(get_string('noaiproofreaders', 'aiproofreader'), new moodle_url('/course/view.php', ['id' => $course->id]));
 }
 
 $usesections = course_format_uses_sections($course->format);
 
-$headings = array(get_string('name'));
+$headings = [get_string('name')];
 if ($usesections) {
     array_unshift($headings, get_string('sectionname', 'format_' . $course->format));
 }
@@ -67,15 +67,15 @@ $table->head = $headings;
 
 foreach ($aiproofreaders as $aiproofreader) {
     $link = html_writer::link(
-        new moodle_url('/mod/aiproofreader/view.php', array('id' => $aiproofreader->coursemodule)),
+        new moodle_url('/mod/aiproofreader/view.php', ['id' => $aiproofreader->coursemodule]),
         format_string($aiproofreader->name)
     );
 
     if (!$aiproofreader->visible) {
-        $link = html_writer::tag('span', $link, array('class' => 'dimmed'));
+        $link = html_writer::tag('span', $link, ['class' => 'dimmed']);
     }
 
-    $row = array($link);
+    $row = [$link];
     if ($usesections) {
         array_unshift($row, get_section_name($course, $aiproofreader->section));
     }

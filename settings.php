@@ -24,10 +24,16 @@
 defined('MOODLE_INTERNAL') || die();
 if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configtextarea(
-        'mod_aiproofreader/defaultaiinstructions',
+        'aiproofreader/defaultaiinstructions',
         get_string('defaultaiinstructions', 'aiproofreader'),
         get_string('defaultaiinstructions_desc', 'aiproofreader'),
         get_string('defaultaiinstructions_default', 'aiproofreader'),
         PARAM_RAW
+    ));
+
+    $settings->add(new admin_setting_heading(
+        'aiproofreader/surveyheading',
+        get_string('settings_surveyheading', 'aiproofreader'),
+        get_string('settings_surveyheading_desc', 'aiproofreader')
     ));
 }

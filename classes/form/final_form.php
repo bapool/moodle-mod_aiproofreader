@@ -93,55 +93,66 @@ class final_form extends \moodleform {
             }
         }
 
-        // Required student survey.
-        $mform->addElement('header', 'surveyheader', get_string('surveyheading', 'aiproofreader'));
-        $mform->setExpanded('surveyheader', true);
+        // Optional student survey - collected only when the site has the
+        // survey system turned on; individual questions can be turned off too.
+        if (aiproofreader_survey_enabled()) {
+            $mform->addElement('header', 'surveyheader', get_string('surveyheading', 'aiproofreader'));
+            $mform->setExpanded('surveyheader', true);
 
-        $this->add_scale_radios('q1overallfeedback', get_string('q1overallfeedback', 'aiproofreader'));
-        $this->add_scale_radios('q2specificfeedback', get_string('q2specificfeedback', 'aiproofreader'));
-        $this->add_scale_radios('q3usedfeedback', get_string('q3usedfeedback', 'aiproofreader'));
+            foreach (['q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback'] as $qkey) {
+                if (aiproofreader_question_enabled('student', $qkey)) {
+                    $this->add_scale_radios($qkey, aiproofreader_question_text('student', $qkey));
+                }
+            }
 
-        $categorygroup = [
-            $mform->createElement(
-                'radio',
-                'q4categoryhelped',
-                '',
-                get_string('q4categoryhelped_grammar', 'aiproofreader'),
-                'grammar'
-            ),
-            $mform->createElement(
-                'radio',
-                'q4categoryhelped',
-                '',
-                get_string('q4categoryhelped_assignment', 'aiproofreader'),
-                'assignment'
-            ),
-            $mform->createElement(
-                'radio',
-                'q4categoryhelped',
-                '',
-                get_string('q4categoryhelped_both', 'aiproofreader'),
-                'both'
-            ),
-        ];
-        $mform->addGroup(
-            $categorygroup,
-            'q4categoryhelped_group',
-            get_string('q4categoryhelped', 'aiproofreader'),
-            [' '],
-            false
-        );
-        $mform->setType('q4categoryhelped', PARAM_ALPHA);
+            if (aiproofreader_question_enabled('student', 'q4categoryhelped')) {
+                $categorygroup = [
+                    $mform->createElement(
+                        'radio',
+                        'q4categoryhelped',
+                        '',
+                        get_string('q4categoryhelped_grammar', 'aiproofreader'),
+                        'grammar'
+                    ),
+                    $mform->createElement(
+                        'radio',
+                        'q4categoryhelped',
+                        '',
+                        get_string('q4categoryhelped_assignment', 'aiproofreader'),
+                        'assignment'
+                    ),
+                    $mform->createElement(
+                        'radio',
+                        'q4categoryhelped',
+                        '',
+                        get_string('q4categoryhelped_both', 'aiproofreader'),
+                        'both'
+                    ),
+                ];
+                $mform->addGroup(
+                    $categorygroup,
+                    'q4categoryhelped_group',
+                    aiproofreader_question_text('student', 'q4categoryhelped'),
+                    [' '],
+                    false
+                );
+                $mform->setType('q4categoryhelped', PARAM_ALPHA);
+            }
 
-        $this->add_scale_radios('q5confidence', get_string('q5confidence', 'aiproofreader'));
+            if (aiproofreader_question_enabled('student', 'q5confidence')) {
+                $this->add_scale_radios('q5confidence', aiproofreader_question_text('student', 'q5confidence'));
+            }
 
-        $mform->addElement(
-            'textarea',
-            'freetext',
-            get_string('freetextlabel', 'aiproofreader'),
-            ['rows' => 3, 'cols' => 60]
-        );
-        $mform->setType('freetext', PARAM_TEXT);
+            if (aiproofreader_question_enabled('student', 'freetext')) {
+                $mform->addElement(
+                    'textarea',
+                    'freetext',
+                    get_string('freetextlabel', 'aiproofreader'),
+                    ['rows' => 3, 'cols' => 60]
+                );
+                $mform->setType('freetext', PARAM_TEXT);
+            }
+        }
 
         $this->add_action_buttons(false, get_string('submitfinal', 'aiproofreader'));
     }
@@ -192,14 +203,16 @@ class final_form extends \moodleform {
             }
         }
 
-        foreach (static::$scalequestions as $question) {
-            if (empty($data[$question])) {
-                $errors[$question . '_group'] = get_string('err_surveyrequired', 'aiproofreader');
+        if (aiproofreader_survey_enabled()) {
+            foreach (static::$scalequestions as $question) {
+                if (aiproofreader_question_enabled('student', $question) && empty($data[$question])) {
+                    $errors[$question . '_group'] = get_string('err_surveyrequired', 'aiproofreader');
+                }
             }
-        }
 
-        if (empty($data['q4categoryhelped'])) {
-            $errors['q4categoryhelped_group'] = get_string('err_surveyrequired', 'aiproofreader');
+            if (aiproofreader_question_enabled('student', 'q4categoryhelped') && empty($data['q4categoryhelped'])) {
+                $errors['q4categoryhelped_group'] = get_string('err_surveyrequired', 'aiproofreader');
+            }
         }
 
         return $errors;

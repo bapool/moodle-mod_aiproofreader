@@ -74,6 +74,128 @@ function aiproofreader_get_lexile_for_grade($grade) {
 }
 
 /**
+ * Ordered list of student survey question keys.
+ *
+ * @return string[]
+ */
+function aiproofreader_student_survey_question_keys() {
+    return ['q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback', 'q4categoryhelped', 'q5confidence', 'freetext'];
+}
+
+/**
+ * Ordered list of teacher survey question keys.
+ *
+ * @return string[]
+ */
+function aiproofreader_teacher_survey_question_keys() {
+    return [
+        'q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback',
+        'q4feedbackfollowed', 'q5aiscaffold', 'q6aiaccuracy', 'freetext',
+    ];
+}
+
+/**
+ * Whether the survey system is turned on at all, site-wide. Off by default:
+ * without local_aiproofreaderreport installed there is no way to see the
+ * collected survey data, so nothing is collected or shown until it's on.
+ *
+ * @return bool
+ */
+function aiproofreader_survey_enabled() {
+    return (bool) get_config('aiproofreader', 'surveyenabled');
+}
+
+/**
+ * Whether one survey question is enabled for collection/display. Defaults
+ * to enabled (matches this plugin's original behaviour) unless a site
+ * admin has explicitly turned it off via local_aiproofreaderreport.
+ *
+ * @param string $surveytype student|teacher
+ * @param string $qkey one of aiproofreader_student_survey_question_keys() / _teacher_
+ * @return bool
+ */
+function aiproofreader_question_enabled($surveytype, $qkey) {
+    $value = get_config('aiproofreader', $surveytype . 'survey_' . $qkey . '_enabled');
+    return $value === false ? true : (bool) $value;
+}
+
+/**
+ * The question wording to display: the site's customized text if one has
+ * been set via local_aiproofreaderreport, otherwise this plugin's original
+ * default wording.
+ *
+ * @param string $surveytype student|teacher
+ * @param string $qkey one of aiproofreader_student_survey_question_keys() / _teacher_
+ * @return string
+ */
+function aiproofreader_question_text($surveytype, $qkey) {
+    $custom = get_config('aiproofreader', $surveytype . 'survey_' . $qkey . '_text');
+    if ($custom !== false && trim((string) $custom) !== '') {
+        return $custom;
+    }
+
+    $defaultstringkey = $surveytype === 'teacher' ? 'grader' . $qkey : $qkey;
+    return get_string($defaultstringkey, 'aiproofreader');
+}
+
+/**
+ * Whether Google Doc submission text, once fetched for AI processing,
+ * should be retained in the database afterward - or purged back to just
+ * the stored link once feedback/comparison no longer need it. Off by
+ * default: a stored link with no retained text is not exportable research
+ * data, so this must be explicitly turned on to collect it.
+ *
+ * @return bool
+ */
+function aiproofreader_collect_gdrive_text() {
+    return (bool) get_config('aiproofreader', 'collectgdrivetext');
+}
+
+/**
+ * The site's current label for whichever AI model/provider is configured
+ * (e.g. "GPT-4o", "Claude Sonnet 4.5 via Anthropic"). Moodle's AI subsystem
+ * doesn't reliably report which model actually answered a request - that's
+ * up to each provider plugin, and it's inconsistent - so this manually
+ * maintained label (set via local_aiproofreaderreport) is the reliable
+ * record of what was in use, stamped onto each AI call. Update it whenever
+ * the site's AI provider/model configuration changes.
+ *
+ * @return string Empty string if never set.
+ */
+function aiproofreader_get_current_ai_model_label() {
+    $label = get_config('aiproofreader', 'currentaimodellabel');
+    return $label === false ? '' : trim((string) $label);
+}
+
+/**
+ * Builds the value stored in feedbackaimodel/comparisonaimodel: the site's
+ * configured label, plus whatever the AI response itself reported (if
+ * anything - most providers don't), so nothing is lost either way.
+ *
+ * @param \core_ai\aiactions\responses\response_base $response
+ * @return string
+ */
+function aiproofreader_build_ai_model_label($response) {
+    $label = aiproofreader_get_current_ai_model_label();
+
+    $reported = null;
+    try {
+        $data = $response->get_response_data();
+        $reported = $data['model'] ?? null;
+    } catch (\Throwable $e) {
+        // Some response types may not support this - never let model
+        // labeling break the actual AI feedback/comparison it's labeling.
+        $reported = null;
+    }
+
+    if (!empty($reported) && $reported !== $label) {
+        return $label !== '' ? ($label . ' (reported: ' . $reported . ')') : $reported;
+    }
+
+    return $label;
+}
+
+/**
  * File manager options for the teacher's "Additional files" attachments
  * (e.g. a lab sheet). Stored at itemid 0 since there is one set per instance.
  *
@@ -186,16 +308,26 @@ function aiproofreader_render_submission_file_link($context, $itemid, $filearea)
  * @return string HTML
  */
 function aiproofreader_render_student_survey($survey) {
-    $out = html_writer::tag('p', get_string('q1overallfeedback', 'aiproofreader') . ' ' . $survey->q1overallfeedback . '/5');
-    $out .= html_writer::tag('p', get_string('q2specificfeedback', 'aiproofreader') . ' ' . $survey->q2specificfeedback . '/5');
-    $out .= html_writer::tag('p', get_string('q3usedfeedback', 'aiproofreader') . ' ' . $survey->q3usedfeedback . '/5');
-    $out .= html_writer::tag('p', get_string('q4categoryhelped', 'aiproofreader') . ' '
-        . get_string('q4categoryhelped_' . $survey->q4categoryhelped, 'aiproofreader'));
-    $out .= html_writer::tag('p', get_string('q5confidence', 'aiproofreader') . ' ' . $survey->q5confidence . '/5');
+    $out = '';
 
-    if (!empty($survey->freetext)) {
-        $out .= html_writer::tag('p', html_writer::tag('strong', get_string('freetextlabel', 'aiproofreader'))
-            . ' ' . s($survey->freetext));
+    foreach (aiproofreader_student_survey_question_keys() as $qkey) {
+        if (!aiproofreader_question_enabled('student', $qkey)) {
+            continue;
+        }
+
+        if ($qkey === 'freetext') {
+            if (!empty($survey->freetext)) {
+                $out .= html_writer::tag('p', html_writer::tag('strong', get_string('freetextlabel', 'aiproofreader'))
+                    . ' ' . s($survey->freetext));
+            }
+        } else if ($qkey === 'q4categoryhelped') {
+            if (!empty($survey->q4categoryhelped)) {
+                $out .= html_writer::tag('p', aiproofreader_question_text('student', $qkey) . ' '
+                    . get_string('q4categoryhelped_' . $survey->q4categoryhelped, 'aiproofreader'));
+            }
+        } else if (isset($survey->$qkey) && $survey->$qkey !== null) {
+            $out .= html_writer::tag('p', aiproofreader_question_text('student', $qkey) . ' ' . $survey->$qkey . '/5');
+        }
     }
 
     return $out;

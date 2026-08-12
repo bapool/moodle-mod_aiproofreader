@@ -67,23 +67,28 @@ class grade_form extends \moodleform {
         );
         $mform->setType('instructorcomments_editor', PARAM_RAW);
 
-        $mform->addElement('header', 'teachersurveyheader', get_string('teachersurveyheading', 'aiproofreader'));
-        $mform->setExpanded('teachersurveyheader', true);
+        // Optional teacher survey - collected only when the site has the
+        // survey system turned on; individual questions can be turned off too.
+        if (aiproofreader_survey_enabled()) {
+            $mform->addElement('header', 'teachersurveyheader', get_string('teachersurveyheading', 'aiproofreader'));
+            $mform->setExpanded('teachersurveyheader', true);
 
-        $this->add_scale_radios('q1overallfeedback', get_string('graderq1overallfeedback', 'aiproofreader'));
-        $this->add_scale_radios('q2specificfeedback', get_string('graderq2specificfeedback', 'aiproofreader'));
-        $this->add_scale_radios('q3usedfeedback', get_string('graderq3usedfeedback', 'aiproofreader'));
-        $this->add_scale_radios('q4feedbackfollowed', get_string('graderq4feedbackfollowed', 'aiproofreader'));
-        $this->add_scale_radios('q5aiscaffold', get_string('graderq5aiscaffold', 'aiproofreader'));
-        $this->add_scale_radios('q6aiaccuracy', get_string('graderq6aiaccuracy', 'aiproofreader'));
+            foreach (static::$scalequestions as $qkey) {
+                if (aiproofreader_question_enabled('teacher', $qkey)) {
+                    $this->add_scale_radios($qkey, aiproofreader_question_text('teacher', $qkey));
+                }
+            }
 
-        $mform->addElement(
-            'textarea',
-            'freetext',
-            get_string('teacherfreetextlabel', 'aiproofreader'),
-            ['rows' => 3, 'cols' => 60]
-        );
-        $mform->setType('freetext', PARAM_TEXT);
+            if (aiproofreader_question_enabled('teacher', 'freetext')) {
+                $mform->addElement(
+                    'textarea',
+                    'freetext',
+                    get_string('teacherfreetextlabel', 'aiproofreader'),
+                    ['rows' => 3, 'cols' => 60]
+                );
+                $mform->setType('freetext', PARAM_TEXT);
+            }
+        }
 
         $this->add_action_buttons(true, get_string('savegrade', 'aiproofreader'));
     }
@@ -122,9 +127,11 @@ class grade_form extends \moodleform {
             $errors['grade'] = get_string('err_gradeoutofrange', 'aiproofreader', (int)$aiproofreader->grade);
         }
 
-        foreach (static::$scalequestions as $question) {
-            if (empty($data[$question])) {
-                $errors[$question . '_group'] = get_string('err_surveyrequired', 'aiproofreader');
+        if (aiproofreader_survey_enabled()) {
+            foreach (static::$scalequestions as $question) {
+                if (aiproofreader_question_enabled('teacher', $question) && empty($data[$question])) {
+                    $errors[$question . '_group'] = get_string('err_surveyrequired', 'aiproofreader');
+                }
             }
         }
 

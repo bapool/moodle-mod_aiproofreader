@@ -178,6 +178,7 @@ class submission_manager {
                 $submission->feedbackgrammar = $grammar;
                 $submission->feedbackassignment = $assignment;
                 $submission->feedbacktimecreated = time();
+                $submission->feedbackaimodel = aiproofreader_build_ai_model_label($response);
                 $submission->status = 'feedbackready';
             } else {
                 // The AI subsystem responded but declined/failed the request - capture why.
@@ -246,58 +247,6 @@ class submission_manager {
     }
 
     /**
-     * A dedicated, narrowly-scoped check: does this text address the
-     * assignment, yes or no? Deliberately separate from the main feedback
-     * and comparison calls - a single yes/no question is a far more
-     * reliable task for the AI than judging topic relevance as one part of
-     * a larger response that also writes a narrative and picks a score.
-     *
-     * @param \stdClass $aiproofreader
-     * @param int $userid
-     * @param string $text
-     * @return bool|null true/false, or null if the check itself failed
-     */
-    protected static function is_on_topic($aiproofreader, $userid, $text) {
-        if (empty($text)) {
-            return null;
-        }
-
-        $cm = get_coursemodule_from_instance('aiproofreader', $aiproofreader->id, $aiproofreader->course, false, MUST_EXIST);
-        $context = \context_module::instance($cm->id);
-
-        $prompt = get_string('aiprompt_topiccheck', 'aiproofreader', (object) [
-            'activityinstructions' => !empty($aiproofreader->intro) ? strip_tags($aiproofreader->intro) : '',
-            'studenttext' => $text,
-        ]);
-
-        try {
-            $action = new \core_ai\aiactions\generate_text(
-                contextid: $context->id,
-                userid: $userid,
-                prompttext: $prompt
-            );
-            $manager = \core\di::get(\core_ai\manager::class);
-            $response = $manager->process_action($action);
-
-            if ($response->get_success()) {
-                $raw = trim($response->get_response_data()['generatedcontent'] ?? '');
-                if (stripos($raw, 'YES') === 0) {
-                    return true;
-                }
-                if (stripos($raw, 'NO') === 0) {
-                    return false;
-                }
-            }
-        } catch (\Throwable $e) {
-            debugging('mod_aiproofreader: topic relevance check failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
-        }
-
-        // Could not get a clear answer - don't override anything on an
-        // inconclusive result.
-        return null;
-    }
-
-    /**
      * Saves the final submission and the required student survey together,
      * then triggers the AI draft-vs-final comparison and activity completion.
      *
@@ -359,7 +308,42 @@ class submission_manager {
         // motivated making draft feedback async doesn't apply as sharply here.
         self::generate_comparison($aiproofreader, $submission);
 
+        // The Google Doc's text was fetched and stored so the AI feedback
+        // and comparison calls above could read it - if the site hasn't
+        // opted in to retaining that text, clear it back out now that both
+        // AI steps are done, leaving only the drive link on the record.
+        if (!aiproofreader_collect_gdrive_text()) {
+            self::purge_gdrive_text_if_needed($submission);
+        }
+
         return $DB->get_record('aiproofreader_submission', ['id' => $submission->id]);
+    }
+
+    /**
+     * Clears stored Google Doc text back to null for any gdrive-type field
+     * on this submission, leaving the drive link itself intact. No-op for
+     * text/file submission types.
+     *
+     * @param \stdClass $submission
+     */
+    protected static function purge_gdrive_text_if_needed($submission) {
+        global $DB;
+
+        $changed = false;
+
+        if ($submission->initialsubmissiontype === 'gdrive' && $submission->initialtext !== null) {
+            $submission->initialtext = null;
+            $changed = true;
+        }
+        if ($submission->finalsubmissiontype === 'gdrive' && $submission->finaltext !== null) {
+            $submission->finaltext = null;
+            $changed = true;
+        }
+
+        if ($changed) {
+            $submission->timemodified = time();
+            $DB->update_record('aiproofreader_submission', $submission);
+        }
     }
 
     /**
@@ -371,21 +355,45 @@ class submission_manager {
     protected static function save_student_survey($submission, array $data) {
         global $DB;
 
+        if (!aiproofreader_survey_enabled()) {
+            return;
+        }
+
         if ($DB->record_exists('aiproofreader_studentsurvey', ['submissionid' => $submission->id])) {
             return;
         }
 
         $survey = new \stdClass();
         $survey->submissionid = $submission->id;
-        $survey->q1overallfeedback = (int)$data['q1overallfeedback'];
-        $survey->q2specificfeedback = (int)$data['q2specificfeedback'];
-        $survey->q3usedfeedback = (int)$data['q3usedfeedback'];
-        $survey->q4categoryhelped = $data['q4categoryhelped'];
-        $survey->q5confidence = (int)$data['q5confidence'];
-        $survey->freetext = $data['freetext'] ?? '';
+        $survey->q1overallfeedback = self::survey_value('student', 'q1overallfeedback', $data);
+        $survey->q2specificfeedback = self::survey_value('student', 'q2specificfeedback', $data);
+        $survey->q3usedfeedback = self::survey_value('student', 'q3usedfeedback', $data);
+        $survey->q4categoryhelped = self::survey_value('student', 'q4categoryhelped', $data);
+        $survey->q5confidence = self::survey_value('student', 'q5confidence', $data);
+        $survey->freetext = aiproofreader_question_enabled('student', 'freetext') ? ($data['freetext'] ?? '') : null;
         $survey->timecreated = time();
 
         $DB->insert_record('aiproofreader_studentsurvey', $survey);
+    }
+
+    /**
+     * Returns a survey answer only if that question is currently enabled,
+     * otherwise null so it's stored as "not collected" rather than a stale
+     * or fabricated value.
+     *
+     * @param string $surveytype student|teacher
+     * @param string $qkey
+     * @param array $data
+     * @return int|string|null
+     */
+    protected static function survey_value($surveytype, $qkey, array $data) {
+        if (!aiproofreader_question_enabled($surveytype, $qkey)) {
+            return null;
+        }
+        if (!isset($data[$qkey]) || $data[$qkey] === null || $data[$qkey] === '') {
+            return null;
+        }
+        return $qkey === 'q4categoryhelped' ? $data[$qkey] : (int) $data[$qkey];
     }
 
     /**
@@ -432,22 +440,10 @@ class submission_manager {
                 $raw = $response->get_response_data()['generatedcontent'] ?? '';
                 [$score, $summary] = self::parse_comparison_response($raw);
 
-                // Don't just trust the same call's self-reported score - a
-                // dedicated, single-question check is far more reliable than
-                // asking one call to write a narrative, pick a score, AND
-                // judge topic relevance all at once. If it disagrees, the
-                // independent check wins.
-                $finalontopic = self::is_on_topic($aiproofreader, $submission->userid, $submission->finaltext);
-                if ($finalontopic === false) {
-                    if ($score === null || $score > 2) {
-                        $score = 1;
-                    }
-                    $summary = get_string('aicomparisonofftopicnote', 'aiproofreader') . ' ' . $summary;
-                }
-
                 $submission->aifollowedscore = $score;
                 $submission->aicomparison = $summary;
                 $submission->aicomparisontimecreated = time();
+                $submission->comparisonaimodel = aiproofreader_build_ai_model_label($response);
             } else {
                 $errormessage = $response->get_errormessage();
                 if (empty($errormessage)) {
@@ -532,26 +528,29 @@ class submission_manager {
             $DB->update_record('aiproofreader_grade', $graderecord);
         }
 
-        $surveyrecord = $DB->get_record('aiproofreader_teachersurvey', ['submissionid' => $submission->id]);
-        $isnewsurvey = empty($surveyrecord);
-        if (!$surveyrecord) {
-            $surveyrecord = new \stdClass();
-            $surveyrecord->submissionid = $submission->id;
-        }
-        $surveyrecord->graderid = $graderid;
-        $surveyrecord->q1overallfeedback = (int)$surveydata['q1overallfeedback'];
-        $surveyrecord->q2specificfeedback = (int)$surveydata['q2specificfeedback'];
-        $surveyrecord->q3usedfeedback = (int)$surveydata['q3usedfeedback'];
-        $surveyrecord->q4feedbackfollowed = (int)$surveydata['q4feedbackfollowed'];
-        $surveyrecord->q5aiscaffold = (int)$surveydata['q5aiscaffold'];
-        $surveyrecord->q6aiaccuracy = (int)$surveydata['q6aiaccuracy'];
-        $surveyrecord->freetext = $surveydata['freetext'] ?? '';
-        $surveyrecord->timecreated = time();
+        if (aiproofreader_survey_enabled()) {
+            $surveyrecord = $DB->get_record('aiproofreader_teachersurvey', ['submissionid' => $submission->id]);
+            $isnewsurvey = empty($surveyrecord);
+            if (!$surveyrecord) {
+                $surveyrecord = new \stdClass();
+                $surveyrecord->submissionid = $submission->id;
+            }
+            $surveyrecord->graderid = $graderid;
+            $surveyrecord->q1overallfeedback = self::survey_value('teacher', 'q1overallfeedback', $surveydata);
+            $surveyrecord->q2specificfeedback = self::survey_value('teacher', 'q2specificfeedback', $surveydata);
+            $surveyrecord->q3usedfeedback = self::survey_value('teacher', 'q3usedfeedback', $surveydata);
+            $surveyrecord->q4feedbackfollowed = self::survey_value('teacher', 'q4feedbackfollowed', $surveydata);
+            $surveyrecord->q5aiscaffold = self::survey_value('teacher', 'q5aiscaffold', $surveydata);
+            $surveyrecord->q6aiaccuracy = self::survey_value('teacher', 'q6aiaccuracy', $surveydata);
+            $surveyrecord->freetext = aiproofreader_question_enabled('teacher', 'freetext')
+                ? ($surveydata['freetext'] ?? '') : null;
+            $surveyrecord->timecreated = time();
 
-        if ($isnewsurvey) {
-            $DB->insert_record('aiproofreader_teachersurvey', $surveyrecord);
-        } else {
-            $DB->update_record('aiproofreader_teachersurvey', $surveyrecord);
+            if ($isnewsurvey) {
+                $DB->insert_record('aiproofreader_teachersurvey', $surveyrecord);
+            } else {
+                $DB->update_record('aiproofreader_teachersurvey', $surveyrecord);
+            }
         }
 
         $submission->status = 'graded';
