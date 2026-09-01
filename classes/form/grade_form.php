@@ -102,9 +102,11 @@ class grade_form extends \moodleform {
     protected function add_scale_radios($name, $label) {
         $mform = $this->_form;
         $group = [];
+        $group[] = $mform->createElement('static', $name . '_low', '', get_string('scalelabellow', 'aiproofreader'));
         for ($i = 1; $i <= 5; $i++) {
             $group[] = $mform->createElement('radio', $name, '', $i, $i);
         }
+        $group[] = $mform->createElement('static', $name . '_high', '', get_string('scalelabelhigh', 'aiproofreader'));
         $mform->addGroup($group, $name . '_group', $label, [' '], false);
         $mform->setType($name, PARAM_INT);
     }

@@ -60,15 +60,23 @@ class final_form extends \moodleform {
         }
 
         if (!empty($aiproofreader->submtext)) {
+            $editoroptions = [
+                'maxfiles' => 0,
+                'noclean' => false,
+                'subdirs' => false,
+                'trusttext' => false,
+                'context' => $this->_customdata['context'],
+            ];
             $mform->addElement(
-                'textarea',
-                'onlinetext',
+                'editor',
+                'onlinetext_editor',
                 get_string('onlinetextlabel', 'aiproofreader'),
-                ['rows' => 15, 'cols' => 60]
+                null,
+                $editoroptions
             );
-            $mform->setType('onlinetext', PARAM_RAW);
+            $mform->setType('onlinetext_editor', PARAM_RAW);
             if ($multipletypes) {
-                $mform->hideIf('onlinetext', 'submissiontype', 'neq', 'text');
+                $mform->hideIf('onlinetext_editor', 'submissiontype', 'neq', 'text');
             }
         }
 
@@ -166,9 +174,11 @@ class final_form extends \moodleform {
     protected function add_scale_radios($name, $label) {
         $mform = $this->_form;
         $group = [];
+        $group[] = $mform->createElement('static', $name . '_low', '', get_string('scalelabellow', 'aiproofreader'));
         for ($i = 1; $i <= 5; $i++) {
             $group[] = $mform->createElement('radio', $name, '', $i, $i);
         }
+        $group[] = $mform->createElement('static', $name . '_high', '', get_string('scalelabelhigh', 'aiproofreader'));
         $mform->addGroup($group, $name . '_group', $label, [' '], false);
         $mform->setType($name, PARAM_INT);
     }
@@ -183,8 +193,9 @@ class final_form extends \moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if ($data['submissiontype'] === 'text' && trim($data['onlinetext']) === '') {
-            $errors['onlinetext'] = get_string('err_notextentered', 'aiproofreader');
+        if ($data['submissiontype'] === 'text'
+                && aiproofreader_editor_html_to_text($data['onlinetext_editor']['text'] ?? '') === '') {
+            $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
         }
 
         if ($data['submissiontype'] === 'gdrive') {

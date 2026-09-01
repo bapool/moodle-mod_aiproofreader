@@ -51,15 +51,23 @@ class draft_form extends \moodleform {
         }
 
         if (!empty($aiproofreader->submtext)) {
+            $editoroptions = [
+                'maxfiles' => 0,
+                'noclean' => false,
+                'subdirs' => false,
+                'trusttext' => false,
+                'context' => $this->_customdata['context'],
+            ];
             $mform->addElement(
-                'textarea',
-                'onlinetext',
+                'editor',
+                'onlinetext_editor',
                 get_string('onlinetextlabel', 'aiproofreader'),
-                ['rows' => 15, 'cols' => 60]
+                null,
+                $editoroptions
             );
-            $mform->setType('onlinetext', PARAM_RAW);
+            $mform->setType('onlinetext_editor', PARAM_RAW);
             if ($multipletypes) {
-                $mform->hideIf('onlinetext', 'submissiontype', 'neq', 'text');
+                $mform->hideIf('onlinetext_editor', 'submissiontype', 'neq', 'text');
             }
         }
 
@@ -97,8 +105,13 @@ class draft_form extends \moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if ($data['submissiontype'] === 'text' && trim($data['onlinetext']) === '') {
-            $errors['onlinetext'] = get_string('err_notextentered', 'aiproofreader');
+        if ($data['submissiontype'] === 'text') {
+            $plaintext = aiproofreader_editor_html_to_text($data['onlinetext_editor']['text'] ?? '');
+            if ($plaintext === '') {
+                $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
+            } else if (aiproofreader_count_sentences($plaintext) < 3) {
+                $errors['onlinetext_editor'] = get_string('err_mintextlength', 'aiproofreader');
+            }
         }
 
         if ($data['submissiontype'] === 'gdrive') {
