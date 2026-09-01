@@ -79,6 +79,8 @@ $string['draftsubmissionheading'] = 'Submit your draft';
 $string['finalsubmissionheading'] = 'Submit your final version';
 $string['submissiontype'] = 'Submission type';
 $string['onlinetextlabel'] = 'Your text';
+$string['scalelabellow'] = '<span style="vertical-align: baseline;">Low&nbsp;&nbsp;</span>';
+$string['scalelabelhigh'] = '<span style="vertical-align: baseline;">&nbsp;&nbsp;High</span>';
 $string['gdrivelinklabel'] = 'Google Drive link';
 $string['fileuploadlabel'] = 'File (Word document)';
 $string['submitdraft'] = 'Submit draft for feedback';
@@ -132,6 +134,7 @@ $string['freetextlabel'] = 'Anything the AI feedback missed? (optional)';
 
 // Form validation strings.
 $string['err_notextentered'] = 'Please enter your text.';
+$string['err_mintextlength'] = 'Your draft needs at least 3 sentences before you can submit it for feedback.';
 $string['err_nofileuploaded'] = 'Please upload a Word document.';
 $string['err_invalidgdrivelink'] = 'Please enter a valid Google Drive link.';
 $string['err_surveyrequired'] = 'Please answer all survey questions.';

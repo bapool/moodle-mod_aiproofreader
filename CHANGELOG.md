@@ -2,6 +2,22 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.3.4 (2026083101)
+### Added
+- `aiproofreader_get_anon_id($idnumber)`: computes a stable, one-way anonymous ID for a student from their Moodle `idnumber` (SSID), using a keyed HMAC-SHA256 hash. The same student always produces the same ID, with no mapping table stored anywhere - the secret key is generated automatically on first use, stored in site config, and never displayed or exported. Intended for use by `local_aiproofreaderreport`'s anonymized export.
+
+## v0.3.3 (2026081103)
+### Changed
+- Scale radio layout changed from labeling each endpoint radio itself ("1 = Low" ... "5 = High", which visually separated the radio buttons) to plain "Low = 1 2 3 4 5 = High" - the Low/High labels now sit outside the group of radios as static text, so the five buttons stay adjacent.
+
+## v0.3.2 (2026081102)
+### Changed
+- Student draft and final submission text boxes are now full Moodle text editors (Atto), not plain textareas - a much nicer typing/paste experience. Content is still converted to and stored as plain text under the hood, so AI prompts, sentence counting, and everything else downstream is unaffected.
+- All 1-5 survey radio groups (student and teacher) now label the endpoints "1 = Low" and "5 = High" so respondents know which direction is positive, instead of showing bare unlabeled numbers.
+
+### Added
+- Draft submissions with an online text type now require at least 3 sentences (a simple terminal-punctuation heuristic). Submitting fewer re-displays the draft form with an explanatory error - the student never leaves the draft page. Only applies to the online text type; file uploads and Google Drive links aren't checked.
+
 ## v0.3.1 (2026081101)
 ### Added
 - Group filter dropdown on the teacher's student submissions list (`view.php`), so long class lists can be narrowed to one course group at a time.

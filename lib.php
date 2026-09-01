@@ -168,6 +168,49 @@ function aiproofreader_get_current_ai_model_label() {
 }
 
 /**
+ * Returns a stable, one-way anonymous ID for a student, derived from their
+ * Moodle idnumber (SSID) and a site-secret key that is never displayed or
+ * exported. The same idnumber always produces the same anonid, forever,
+ * with no mapping table stored anywhere - callers (e.g. anonymized export
+ * code in local_aiproofreaderreport) simply call this each time they need
+ * it. If the idnumber is empty, returns an empty string so callers can
+ * decide how to handle students with no SSID on file.
+ *
+ * @param string $idnumber
+ * @return string
+ */
+function aiproofreader_get_anon_id($idnumber) {
+    $idnumber = trim((string) $idnumber);
+    if ($idnumber === '') {
+        return '';
+    }
+
+    $secret = aiproofreader_get_anon_id_secret();
+    $hash = hash_hmac('sha256', $idnumber, $secret);
+
+    // Compact, readable alphanumeric form - prefixed so it can never be
+    // mistaken for a real student identifier.
+    return 'ANON-' . strtoupper(substr($hash, 0, 12));
+}
+
+/**
+ * Returns the site's secret key used to compute anonymous IDs, generating
+ * and storing one automatically the first time it's needed. This value is
+ * never shown in any settings screen, report, or export. Rotating it (by
+ * deleting the config value) changes every anonid produced afterward.
+ *
+ * @return string
+ */
+function aiproofreader_get_anon_id_secret() {
+    $secret = get_config('aiproofreader', 'anonidsecret');
+    if ($secret === false || $secret === '') {
+        $secret = bin2hex(random_bytes(32));
+        set_config('anonidsecret', $secret, 'aiproofreader');
+    }
+    return $secret;
+}
+
+/**
  * Builds the value stored in feedbackaimodel/comparisonaimodel: the site's
  * configured label, plus whatever the AI response itself reported (if
  * anything - most providers don't), so nothing is lost either way.
@@ -193,6 +236,43 @@ function aiproofreader_build_ai_model_label($response) {
     }
 
     return $label;
+}
+
+/**
+ * Converts the HTML produced by a Moodle text editor (Atto/TinyMCE) into
+ * plain text, preserving paragraph/line breaks as newlines. Used so the
+ * student-facing rich text editor can be offered for a nicer typing/paste
+ * experience while everything downstream (AI prompts, sentence counting,
+ * plain-text storage) keeps working exactly as it did with a plain textarea.
+ *
+ * @param string $html
+ * @return string
+ */
+function aiproofreader_editor_html_to_text($html) {
+    $html = (string) $html;
+    $html = preg_replace('/<\/(p|div|li|h[1-6])>/i', "\n", $html);
+    $html = preg_replace('/<br\s*\/?>/i', "\n", $html);
+    $text = strip_tags($html);
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('/\n{3,}/', "\n\n", $text);
+    return trim($text);
+}
+
+/**
+ * A simple heuristic sentence count: the number of terminal punctuation
+ * clusters (., !, ?) in the text. Not linguistically perfect, but good
+ * enough to gate an obviously too-short draft.
+ *
+ * @param string $text Plain text (not HTML).
+ * @return int
+ */
+function aiproofreader_count_sentences($text) {
+    $text = trim((string) $text);
+    if ($text === '') {
+        return 0;
+    }
+    preg_match_all('/[.!?]+/', $text, $matches);
+    return count($matches[0]);
 }
 
 /**

@@ -46,6 +46,7 @@ Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from th
 - The "Hide grader identity from students" setting is stored but not yet enforced anywhere in the UI, since nothing currently displays grader identity to students in the first place.
 - Google Drive submissions require the document to be shared as "Anyone with the link can view" (or comment/edit) - the plugin cannot read privately-shared docs and will reject the submission at the form-validation stage if it can't read the content.
 - A draft that's abandoned before final submission (student never finishes) can leave fetched Google Doc text sitting in `initialtext` even with text retention off, since that text is only purged once the final-submission AI comparison step runs. The weekly cleanup task in local_aiproofreaderreport will eventually remove the whole submission row if the activity or student account is later deleted, but does not otherwise sweep abandoned drafts on a timer.
+- The 3-sentence minimum on draft submissions only applies to the online text type (a simple terminal-punctuation heuristic on the plain-text-converted content) - file uploads and Google Drive links aren't length-checked at submission time.
 
 ## License
 

@@ -79,22 +79,29 @@ if (!$isgrader) {
     }
 
     if ($submission->status === 'draft') {
-        $draftform = new \mod_aiproofreader\form\draft_form($PAGE->url, ['aiproofreader' => $aiproofreader]);
+        $draftform = new \mod_aiproofreader\form\draft_form(
+            $PAGE->url,
+            ['aiproofreader' => $aiproofreader, 'context' => $context]
+        );
 
         if ($data = $draftform->get_data()) {
+            $onlinetext = aiproofreader_editor_html_to_text($data->onlinetext_editor['text'] ?? '');
             \mod_aiproofreader\submission_manager::save_draft(
                 $aiproofreader,
                 $submission,
                 $context,
                 $data->submissiontype,
-                $data->onlinetext ?? '',
+                $onlinetext,
                 $data->gdrivelink ?? '',
                 $data->submissionfile ?? 0
             );
             redirect(new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]));
         }
     } else if ($submission->status === 'feedbackready') {
-        $finalform = new \mod_aiproofreader\form\final_form($PAGE->url, ['aiproofreader' => $aiproofreader]);
+        $finalform = new \mod_aiproofreader\form\final_form(
+            $PAGE->url,
+            ['aiproofreader' => $aiproofreader, 'context' => $context]
+        );
 
         if ($data = $finalform->get_data()) {
             $surveydata = [
@@ -106,12 +113,13 @@ if (!$isgrader) {
                 'freetext' => $data->freetext ?? '',
             ];
 
+            $onlinetext = aiproofreader_editor_html_to_text($data->onlinetext_editor['text'] ?? '');
             \mod_aiproofreader\submission_manager::submit_final(
                 $aiproofreader,
                 $submission,
                 $context,
                 $data->submissiontype,
-                $data->onlinetext ?? '',
+                $onlinetext,
                 $data->gdrivelink ?? '',
                 $data->submissionfile ?? 0,
                 $surveydata
