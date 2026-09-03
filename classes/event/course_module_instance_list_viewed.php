@@ -15,17 +15,17 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for mod_aiproofreader.
+ * The mod_aiproofreader course module instance list viewed event.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+namespace mod_aiproofreader\event;
 
-$plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026090300;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.4.0';
+/**
+ * The mod_aiproofreader course module instance list viewed event class.
+ */
+class course_module_instance_list_viewed extends \core\event\course_module_instance_list_viewed {
+}

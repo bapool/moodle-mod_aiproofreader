@@ -27,6 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 // Core plugin strings.
 $string['modulename'] = 'AI Proofreader';
 $string['modulename_help'] = 'The AI Proofreader activity lets students submit a draft, receive AI-generated feedback on grammar/spelling and assignment specifics, then submit a revised final version for teacher grading.';
+$string['convertfromassign'] = 'Convert to AI Proofreader';
 $string['modulenameplural'] = 'AI Proofreaders';
 $string['pluginadministration'] = 'AI Proofreader administration';
 $string['pluginname'] = 'AI Proofreader';
@@ -60,6 +61,11 @@ $string['cutoffdate'] = 'Cut-off date';
 $string['cutoffdate_help'] = 'If set, students will not be able to submit after this date without an extension.';
 $string['gradeheader'] = 'Grade';
 $string['maximumgrade'] = 'Maximum points';
+$string['importfromassign'] = 'Import from an existing Assignment';
+$string['importfromassign_desc'] = 'Optionally pick an existing Assignment activity in this course to prefill the name, description, dates, grade, and completion settings below. If the Assignment uses a grading scale rather than points, the maximum grade will not be imported - AI Proofreader only supports point grading, so please set it manually.';
+$string['importfromassigndesc'] = 'Importing from an existing Moodle Assignment will copy its contents into this activity and move this activity directly under the copied Assignment once saved. It will also automatically hide the Assignment being copied from students.';
+$string['importfromassignlabel'] = 'Assignment to import from';
+$string['loadimportassign'] = 'Load';
 $string['hidegrader'] = 'Hide grader identity from students';
 $string['hidegrader_help'] = 'If enabled, students will not see which teacher graded their submission.';
 $string['completionsubmit'] = 'Student must make a final submission to complete this activity';
@@ -79,6 +85,8 @@ $string['draftsubmissionheading'] = 'Submit your draft';
 $string['finalsubmissionheading'] = 'Submit your final version';
 $string['submissiontype'] = 'Submission type';
 $string['onlinetextlabel'] = 'Your text';
+$string['onlinetextlabelfinal'] = 'Your initial draft should be edited according to the above feedback. Simply submitting the draft could result in a lowered final grade.';
+$string['yourdraftheading'] = 'Your draft';
 $string['scalelabellow'] = '<span style="vertical-align: baseline;">Low&nbsp;&nbsp;</span>';
 $string['scalelabelhigh'] = '<span style="vertical-align: baseline;">&nbsp;&nbsp;High</span>';
 $string['gdrivelinklabel'] = 'Google Drive link';
@@ -135,6 +143,7 @@ $string['freetextlabel'] = 'Anything the AI feedback missed? (optional)';
 // Form validation strings.
 $string['err_notextentered'] = 'Please enter your text.';
 $string['err_mintextlength'] = 'Your draft needs at least 3 sentences before you can submit it for feedback.';
+$string['err_nochangesmade'] = 'It looks like no changes were made to your draft. Please revise your writing based on the feedback before submitting your final version.';
 $string['err_nofileuploaded'] = 'Please upload a Word document.';
 $string['err_invalidgdrivelink'] = 'Please enter a valid Google Drive link.';
 $string['err_surveyrequired'] = 'Please answer all survey questions.';
@@ -159,7 +168,7 @@ Student draft:
 {$a->studenttext}';
 $string['aiprompt_comparison'] = 'You are helping a teacher assess whether a student meaningfully improved their writing between draft and final, based on the AI feedback they received. The student is in grade {$a->gradelevel}.
 
-CRITICAL RULE - CHECK THIS FIRST: Read the assignment instructions below and independently judge whether the FINAL version actually addresses the assignment topic, even if the original feedback already noted the draft was off-topic. Do not just trust that the student fixed it - check the final version yourself. If the final version does NOT address the assignment - even if it is a completely different piece of writing than the draft, and even if grammar or spelling improved - the FOLLOWED SCORE must be 1 or 2. Surface-level writing improvements never count as "following the feedback" if the core problem (not addressing the assignment) was never resolved. This check overrides every other consideration below.
+CRITICAL RULE - CHECK THIS FIRST: First compare the FINAL version to the ORIGINAL DRAFT to see whether the actual substance - the ideas, topic, and content the student wrote about - changed, or whether the student only fixed grammar, spelling, wording, or punctuation. If the substance is essentially the same as the draft, you must NOT re-decide from scratch whether the assignment was addressed - instead, use the same conclusion already reached in the assignment-specific feedback given below. If that feedback treated the draft as addressing the assignment topic (even if it suggested going further or adding more depth), then the final version addresses the assignment too, and the FOLLOWED SCORE must not be lowered to 1-2 for an \"off-topic\" reason - your SUMMARY should instead explicitly note that the student corrected the grammar/spelling issues that were identified. Only judge the FINAL version as not addressing the assignment - and only then consider a FOLLOWED SCORE of 1 or 2 for that reason - if the students actual subject matter genuinely changed to something unrelated to the assignment compared to the draft. When you do make that judgment, use the exact same subject-matter-only standard as the original feedback: ignore spelling/grammar, and only call it off-topic if it is genuinely unrelated, not merely underdeveloped. Never apply a stricter topic-relevance standard to the final version than was already applied to the draft.
 
 SECOND RULE - WEIGH FEEDBACK BY WHAT IS REASONABLE FOR THIS GRADE LEVEL: Not all feedback is equally important to incorporate. Distinguish between feedback that pointed out something genuinely required (a grammar/spelling error, a missing core requirement, not addressing the assignment) versus feedback that suggested optional depth, elaboration, or polish beyond what is typically expected at this grade level. A young student who thoroughly fixes every grammar and spelling issue but does not add extra scientific or analytical depth beyond what a student their age would realistically produce should score HIGH (4-5), not be penalized for missing an "extra credit" level of elaboration. Only lower the score meaningfully for skipping feedback that was genuinely required, not for skipping suggestions that were realistically a stretch for the student age. Do not expect a young student to become more sophisticated than is developmentally realistic.
 
@@ -185,6 +194,9 @@ Final version:
 // settings.php strings.
 $string['defaultaiinstructions'] = 'Default AI instructions';
 $string['defaultaiinstructions_desc'] = 'The base instructions sent to the AI for every AI Proofreader activity on this site, describing the proofreading philosophy, what to review, and the exact response format. This is combined with each activity\'s own instructions and any additional AI instructions the teacher adds. If you change the two section header phrases (GRAMMAR AND SPELLING / ASSIGNMENT SPECIFICS), update them consistently - the plugin parses the AI response by looking for those exact phrases.';
+$string['settings_customizedwarning'] = 'You are using customized AI instructions instead of the site default.';
+$string['settings_restoredefault'] = 'Restore to default';
+$string['settings_restoredefault_confirm'] = 'Replace your customized AI instructions with the site default? This cannot be undone.';
 $string['defaultaiinstructions_default'] = <<<'EOT'
 You are an AI proofreader helping a student improve their writing before submitting an assignment.
 

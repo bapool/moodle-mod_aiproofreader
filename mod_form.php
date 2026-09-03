@@ -39,6 +39,30 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
 
         $mform = $this->_form;
 
+        // Optional: prefill this form from an existing Assignment activity
+        // in the course. Only relevant when adding a brand-new activity.
+        if (empty($this->current->instance)) {
+            $mform->addElement('header', 'importheader', get_string('importfromassign', 'aiproofreader'));
+            $mform->setExpanded('importheader', false);
+
+            $mform->addElement('static', 'importfromassigndesc', '', get_string('importfromassigndesc', 'aiproofreader'));
+
+            $assignoptions = [0 => get_string('choosedots')] + aiproofreader_get_course_assign_options($COURSE->id);
+            $mform->addElement(
+                'select',
+                'importassigncmid',
+                get_string('importfromassignlabel', 'aiproofreader'),
+                $assignoptions
+            );
+            $mform->addHelpButton('importassigncmid', 'importfromassign', 'aiproofreader');
+
+            $mform->registerNoSubmitButton('loadimportassign');
+            $mform->addElement('submit', 'loadimportassign', get_string('loadimportassign', 'aiproofreader'));
+
+            $mform->addElement('hidden', 'sourceassigncmid', 0);
+            $mform->setType('sourceassigncmid', PARAM_INT);
+        }
+
         // General.
         $mform->addElement('header', 'general', get_string('general', 'form'));
 
@@ -161,6 +185,34 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
         $this->add_completion_rules();
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
+    }
+
+    /**
+     * If the "Load" button next to the Assignment import picker was the
+     * button just clicked, re-populates the whole form's defaults from
+     * that Assignment. Left alone on every other submit (including the
+     * real Save buttons), so it never silently overwrites a teacher's own
+     * edits.
+     */
+    public function definition_after_data() {
+        parent::definition_after_data();
+
+        $mform = $this->_form;
+
+        if (!$mform->elementExists('loadimportassign')) {
+            return;
+        }
+
+        if (optional_param('loadimportassign', '', PARAM_RAW) === '') {
+            return;
+        }
+
+        $assigncmid = optional_param('importassigncmid', 0, PARAM_INT);
+        if ($assigncmid > 0) {
+            $importdata = \mod_aiproofreader\assign_importer::build_import_data($assigncmid);
+            $importdata->sourceassigncmid = $assigncmid;
+            $mform->setConstants((array) $importdata);
+        }
     }
 
     /**

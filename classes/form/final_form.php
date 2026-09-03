@@ -70,13 +70,21 @@ class final_form extends \moodleform {
             $mform->addElement(
                 'editor',
                 'onlinetext_editor',
-                get_string('onlinetextlabel', 'aiproofreader'),
+                get_string('onlinetextlabelfinal', 'aiproofreader'),
                 null,
                 $editoroptions
             );
             $mform->setType('onlinetext_editor', PARAM_RAW);
             if ($multipletypes) {
                 $mform->hideIf('onlinetext_editor', 'submissiontype', 'neq', 'text');
+            }
+
+            $submission = $this->_customdata['submission'] ?? null;
+            if ($submission && $submission->initialsubmissiontype === 'text' && !empty($submission->initialtext)) {
+                $mform->setDefault('onlinetext_editor', [
+                    'text' => nl2br(s($submission->initialtext)),
+                    'format' => FORMAT_HTML,
+                ]);
             }
         }
 
@@ -193,9 +201,21 @@ class final_form extends \moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if ($data['submissiontype'] === 'text'
-                && aiproofreader_editor_html_to_text($data['onlinetext_editor']['text'] ?? '') === '') {
-            $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
+        if ($data['submissiontype'] === 'text') {
+            $finaltext = aiproofreader_editor_html_to_text($data['onlinetext_editor']['text'] ?? '');
+
+            if ($finaltext === '') {
+                $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
+            } else {
+                $submission = $this->_customdata['submission'] ?? null;
+                if ($submission
+                        && $submission->initialsubmissiontype === 'text'
+                        && !empty($submission->initialtext)
+                        && aiproofreader_normalize_text_for_comparison($finaltext)
+                            === aiproofreader_normalize_text_for_comparison($submission->initialtext)) {
+                    $errors['onlinetext_editor'] = get_string('err_nochangesmade', 'aiproofreader');
+                }
+            }
         }
 
         if ($data['submissiontype'] === 'gdrive') {

@@ -100,7 +100,7 @@ if (!$isgrader) {
     } else if ($submission->status === 'feedbackready') {
         $finalform = new \mod_aiproofreader\form\final_form(
             $PAGE->url,
-            ['aiproofreader' => $aiproofreader, 'context' => $context]
+            ['aiproofreader' => $aiproofreader, 'context' => $context, 'submission' => $submission]
         );
 
         if ($data = $finalform->get_data()) {
@@ -219,6 +219,15 @@ if ($isgrader) {
     echo html_writer::table($table);
 } else {
     echo aiproofreader_render_instructions($aiproofreader, $cm, $submission->status !== 'draft');
+
+    if ($submission->status === 'feedbackready'
+            && $submission->initialsubmissiontype === 'text'
+            && !empty($submission->initialtext)) {
+        echo aiproofreader_collapsible_section(
+            get_string('yourdraftheading', 'aiproofreader'),
+            format_text($submission->initialtext, FORMAT_PLAIN)
+        );
+    }
 
     if ($submission->status === 'draft') {
         echo $OUTPUT->heading(get_string('draftsubmissionheading', 'aiproofreader'), 3);

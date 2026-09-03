@@ -35,6 +35,8 @@ Each activity instance has its own:
 - **Submission types** - online text, Word file upload, and/or a Google Drive link (at least one required)
 - Standard availability, grade (points, category, pass grade), and completion settings
 
+When adding a brand-new activity, teachers can also optionally **import from an existing Assignment** in the same course - a dropdown and "Load" button prefill the name, description, dates, grade, grade category, and completion settings from it. Saving then automatically positions the new activity directly after the source Assignment, copies its Restrict Access conditions, and hides the source Assignment from students (it isn't deleted).
+
 Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from this plugin):
 - **Survey on/off** - off by default. While off, no survey questions are shown to anyone, and this plugin runs in feedback-only mode.
 - **Per-question show/hide and custom wording** - for each of the 5 student and 6 teacher survey questions (plus each side's free-text box).
@@ -47,6 +49,7 @@ Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from th
 - Google Drive submissions require the document to be shared as "Anyone with the link can view" (or comment/edit) - the plugin cannot read privately-shared docs and will reject the submission at the form-validation stage if it can't read the content.
 - A draft that's abandoned before final submission (student never finishes) can leave fetched Google Doc text sitting in `initialtext` even with text retention off, since that text is only purged once the final-submission AI comparison step runs. The weekly cleanup task in local_aiproofreaderreport will eventually remove the whole submission row if the activity or student account is later deleted, but does not otherwise sweep abandoned drafts on a timer.
 - The 3-sentence minimum on draft submissions only applies to the online text type (a simple terminal-punctuation heuristic on the plain-text-converted content) - file uploads and Google Drive links aren't length-checked at submission time.
+- Assignment Import doesn't carry over the grade if the source Assignment uses a grading scale instead of points - AI Proofreader only supports point grading, so the maximum grade is left at its default and needs setting manually in that case.
 
 ## License
 

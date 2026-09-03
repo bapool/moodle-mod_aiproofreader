@@ -2,6 +2,20 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.4.0 (2026090300)
+### Added
+- **Assignment Import**: when creating a brand-new AI Proofreader activity, teachers can now pick an existing Assignment activity in the same course from a dropdown and click "Load" to prefill the name, description (including embedded files), availability dates, maximum grade, grade category, and completion settings from it. On save, the new activity is automatically positioned immediately after the source Assignment in the same section, inherits its Restrict Access conditions, and the source Assignment is automatically hidden from students (left in place, not deleted). If the source Assignment uses a grading scale instead of points, the grade is left at the default rather than imported, since AI Proofreader only supports point grading.
+- On the final-submission page, a student's prior online-text draft is now shown collapsed just under the assignment instructions, and the final submission's text box is prepopulated with that draft (kept in the rich text editor, not plain text) under a label reminding the student to actually revise it before submitting. Only applies to online-text drafts; file and Google Drive drafts are edited offline.
+- The "AI notes on your revision" section is now expanded by default (previously collapsed) on both the student's page and the teacher's grading page.
+- Site admin settings page for AI Proofreader: a warning banner and "Restore to default" button now appear above the "Default AI instructions" field whenever the saved instructions differ from the plugin's built-in default text.
+
+### Changed
+- The draft-vs-final AI comparison ("AI notes on your revision") now explicitly uses the same subject-matter-relevance standard as the original draft feedback when judging whether the final version addresses the assignment, instead of an independently-worded, stricter standard. Previously this could produce a harsher, seemingly contradictory verdict on the final version for writing that hadn't substantively changed from the draft.
+
+### Fixed
+- Completion tracking could incorrectly mark every student as complete regardless of actual submission status, on any activity using automatic completion. Caused by a missing `aiproofreader_get_coursemodule_info()` callback, which Moodle needs to recognize the "must make a final submission" rule as active; without it, Moodle saw zero active completion conditions and defaulted everyone to complete.
+- The "AI Proofreader" activities list page (accessed via the Activities block) crashed with an exception, caused by instantiating the abstract core event class directly instead of a proper plugin-specific subclass.
+
 ## v0.3.4 (2026083101)
 ### Added
 - `aiproofreader_get_anon_id($idnumber)`: computes a stable, one-way anonymous ID for a student from their Moodle `idnumber` (SSID), using a keyed HMAC-SHA256 hash. The same student always produces the same ID, with no mapping table stored anywhere - the secret key is generated automatically on first use, stored in site config, and never displayed or exported. Intended for use by `local_aiproofreaderreport`'s anonymized export.

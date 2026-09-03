@@ -42,6 +42,20 @@ function aiproofreader_gradelexile_options() {
 }
 
 /**
+ * Normalizes plain text for a loose equality comparison - collapses all
+ * whitespace runs to a single space and lowercases, so trivial changes
+ * (extra spaces, capitalization) don't count as "editing" the draft.
+ *
+ * @param string $text Plain text (not HTML).
+ * @return string
+ */
+function aiproofreader_normalize_text_for_comparison($text) {
+    $text = trim((string) $text);
+    $text = preg_replace('/\s+/', ' ', $text);
+    return core_text::strtolower($text);
+}
+
+/**
  * The grade-to-lexile lookup table used both for the settings dropdown and
  * for building AI prompts later.
  *
@@ -467,7 +481,7 @@ function aiproofreader_render_feedback_block($submission) {
         $out .= aiproofreader_collapsible_section(
             get_string('aicomparisonheading', 'aiproofreader'),
             format_text($submission->aicomparison, FORMAT_PLAIN),
-            false
+            true
         );
     }
 
@@ -512,6 +526,64 @@ function aiproofreader_supports($feature) {
 }
 
 /**
+ * Populates extra course-modinfo data, including which custom completion
+ * rules are actually turned on for this instance - required so Moodle's
+ * completion engine knows to evaluate 'completionsubmit' rather than
+ * silently ignoring it and marking the activity complete for everyone.
+ *
+ * @param stdClass $coursemodule
+ * @return cached_cm_info|null
+ */
+
+
+/**
+ * Lists visible Assignment activities in a course, for the "import from an
+ * existing Assignment" dropdown on the AI Proofreader add form.
+ *
+ * @param int $courseid
+ * @return array cmid => activity name
+ */
+function aiproofreader_get_course_assign_options($courseid) {
+    $modinfo = get_fast_modinfo($courseid);
+    $options = [];
+
+    if (empty($modinfo->instances['assign'])) {
+        return $options;
+    }
+
+    foreach ($modinfo->instances['assign'] as $cm) {
+        if ($cm->uservisible) {
+            $options[$cm->id] = format_string($cm->name);
+        }
+    }
+
+    return $options;
+}
+
+function aiproofreader_get_coursemodule_info($coursemodule) {
+    global $DB;
+
+    $aiproofreader = $DB->get_record(
+        'aiproofreader',
+        ['id' => $coursemodule->instance],
+        'id, name, completionsubmit'
+    );
+
+    if (!$aiproofreader) {
+        return null;
+    }
+
+    $info = new cached_cm_info();
+    $info->name = $aiproofreader->name;
+
+    if ($coursemodule->completion == COMPLETION_TRACKING_AUTOMATIC) {
+        $info->customdata['customcompletionrules']['completionsubmit'] = $aiproofreader->completionsubmit;
+    }
+
+    return $info;
+}
+
+/**
  * Saves a new instance of mod_aiproofreader.
  *
  * @param stdClass $aiproofreader
@@ -519,7 +591,7 @@ function aiproofreader_supports($feature) {
  * @return int The new instance id
  */
 function aiproofreader_add_instance($aiproofreader, $mform = null) {
-    global $DB;
+    global $CFG, $DB;
 
     $aiproofreader->timecreated  = time();
     $aiproofreader->timemodified = time();
@@ -546,6 +618,58 @@ function aiproofreader_add_instance($aiproofreader, $mform = null) {
     }
 
     aiproofreader_grade_item_update($aiproofreader);
+
+    // Assignment import: reposition right after the source Assignment,
+    // copy its restrict-access conditions, and hide the now-superseded
+    // Assignment (left in place, not deleted, for the teacher's reference).
+    if (!empty($aiproofreader->sourceassigncmid)) {
+        require_once($CFG->dirroot . '/course/lib.php');
+
+        $sourcecmid = (int) $aiproofreader->sourceassigncmid;
+        $sourcecm = $DB->get_record('course_modules', ['id' => $sourcecmid]);
+
+        if ($sourcecm) {
+            // Copy the raw restriction rule directly - this avoids needing
+            // to replicate Moodle's JS-driven Restrict Access tree UI.
+            $DB->set_field(
+                'course_modules',
+                'availability',
+                $sourcecm->availability,
+                ['id' => $aiproofreader->coursemodule]
+            );
+
+            $destsection = $DB->get_record('course_sections', ['id' => $sourcecm->section], '*', MUST_EXIST);
+
+            // Find whichever course module currently follows the source
+            // Assignment in its section, so the new activity can be
+            // inserted immediately after it (or appended at the end if
+            // the Assignment was already last).
+            $modinfo = get_fast_modinfo($sourcecm->course);
+            $sectioncmids = $modinfo->sections[$destsection->section] ?? [];
+            $beforemodid = null;
+            $foundsource = false;
+            foreach ($sectioncmids as $cmid) {
+                if ($foundsource) {
+                    $beforemodid = $cmid;
+                    break;
+                }
+                if ($cmid == $sourcecmid) {
+                    $foundsource = true;
+                }
+            }
+
+            $newcm = $DB->get_record('course_modules', ['id' => $aiproofreader->coursemodule], '*', MUST_EXIST);
+            $beforemod = $beforemodid
+                ? $DB->get_record('course_modules', ['id' => $beforemodid], '*', MUST_EXIST)
+                : null;
+
+            moveto_module($newcm, $destsection, $beforemod);
+
+            set_coursemodule_visible($sourcecmid, 0);
+
+            rebuild_course_cache($sourcecm->course, true);
+        }
+    }
 
     return $aiproofreader->id;
 }

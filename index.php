@@ -33,7 +33,7 @@ require_course_login($course);
 
 $context = context_course::instance($course->id);
 
-$event = \core\event\course_module_instance_list_viewed::create([
+$event = \mod_aiproofreader\event\course_module_instance_list_viewed::create([
     'context' => $context,
     'courseid' => $course->id,
 ]);

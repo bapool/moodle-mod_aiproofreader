@@ -15,17 +15,31 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for mod_aiproofreader.
+ * Resets the site-wide "Default AI instructions" setting back to the
+ * plugin's built-in default text.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+require(__DIR__ . '/../../config.php');
+require_once($CFG->libdir . '/adminlib.php');
 
-$plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026090300;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.4.0';
+require_login();
+require_sesskey();
+
+$context = context_system::instance();
+require_capability('moodle/site:config', $context);
+
+$PAGE->set_context($context);
+$PAGE->set_url('/mod/aiproofreader/admin_restore_defaults.php');
+
+set_config('defaultaiinstructions', get_string('defaultaiinstructions_default', 'aiproofreader'), 'aiproofreader');
+
+redirect(
+    new moodle_url('/admin/settings.php', ['section' => 'modsettingaiproofreader']),
+    get_string('settings_restoredefault', 'aiproofreader'),
+    null,
+    \core\output\notification::NOTIFY_SUCCESS
+);
