@@ -59,6 +59,7 @@ if (!$submission || !in_array($submission->status, ['finalsubmitted', 'graded'])
 
 $PAGE->set_url('/mod/aiproofreader/grade.php', ['id' => $cm->id, 'userid' => $userid]);
 $PAGE->set_title(format_string($aiproofreader->name));
+$PAGE->requires->js_call_amd('mod_aiproofreader/tts', 'init');
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 

@@ -52,6 +52,7 @@ $event->trigger();
 
 $PAGE->set_url('/mod/aiproofreader/view.php', ['id' => $cm->id, 'groupid' => $groupid]);
 $PAGE->set_title(format_string($aiproofreader->name));
+$PAGE->requires->js_call_amd('mod_aiproofreader/tts', 'init');
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 

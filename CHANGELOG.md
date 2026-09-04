@@ -2,6 +2,10 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.4.1 (2026090301)
+### Added
+- "Read aloud" buttons on each AI feedback section (Grammar and Spelling, Assignment Specifics, AI notes on your revision) and on the activity description, using the browser's built-in text-to-speech (Web Speech API) - no server-side audio generation or additional AI provider required. Buttons toggle to "Stop reading" while playing, and hide automatically if the student's browser has no speech synthesis support.
+
 ## v0.4.0 (2026090300)
 ### Added
 - **Assignment Import**: when creating a brand-new AI Proofreader activity, teachers can now pick an existing Assignment activity in the same course from a dropdown and click "Load" to prefill the name, description (including embedded files), availability dates, maximum grade, grade category, and completion settings from it. On save, the new activity is automatically positioned immediately after the source Assignment in the same section, inherits its Restrict Access conditions, and the source Assignment is automatically hidden from students (left in place, not deleted). If the source Assignment uses a grading scale instead of points, the grade is left at the default rather than imported, since AI Proofreader only supports point grading.

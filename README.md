@@ -42,6 +42,10 @@ Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from th
 - **Per-question show/hide and custom wording** - for each of the 5 student and 6 teacher survey questions (plus each side's free-text box).
 - **Google Doc text retention** - off by default. The text of a submitted Google Doc is always fetched briefly so the AI can process it, then cleared back to just the link afterward unless this is turned on.
 
+## Accessibility
+
+The activity description and each AI feedback section (Grammar and Spelling, Assignment Specifics, AI notes on your revision) include a "Read aloud" button that uses the student's own browser's built-in text-to-speech engine (the Web Speech API) - no server-side audio generation, external AI provider, or file storage involved. Voice quality depends on the browser/OS; the buttons hide themselves automatically on browsers with no speech synthesis support.
+
 ## Known limitations
 
 - No automated PHPUnit or Behat tests.

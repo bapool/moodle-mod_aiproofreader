@@ -363,7 +363,8 @@ function aiproofreader_render_instructions($aiproofreader, $cm, $collapsible = t
         return '';
     }
 
-    $content = format_module_intro('aiproofreader', $aiproofreader, $cm->id);
+    $ttstext = aiproofreader_editor_html_to_text($aiproofreader->intro);
+    $content = aiproofreader_render_tts_button($ttstext) . format_module_intro('aiproofreader', $aiproofreader, $cm->id);
 
     if (!$collapsible) {
         return html_writer::div($content, 'aiproofreader-instructions generalbox mod_introbox');
@@ -458,13 +459,43 @@ function aiproofreader_render_submission_content($context, $submission, $stage) 
  * @param stdClass $submission
  * @return string HTML
  */
+/**
+ * Renders a "Read aloud" button using the browser's built-in text-to-speech
+ * (wired up client-side by amd/src/tts.js) - no server-side audio generation
+ * involved. Returns an empty string if there's no text to read.
+ *
+ * @param string $text Plain text to be read aloud.
+ * @return string HTML
+ */
+function aiproofreader_render_tts_button($text) {
+    if (trim((string) $text) === '') {
+        return '';
+    }
+
+    return html_writer::tag(
+        'button',
+        html_writer::tag('i', '', [
+            'class' => 'icon fa fa-volume-up fa-fw aiproofreader-tts-icon',
+            'aria-hidden' => 'true',
+        ]) . html_writer::tag('span', get_string('readaloud', 'aiproofreader'), ['class' => 'aiproofreader-tts-label']),
+        [
+            'type' => 'button',
+            'class' => 'btn btn-sm btn-outline-secondary aiproofreader-tts-button mb-2',
+            'data-tts-text' => $text,
+            'data-tts-label-play' => get_string('readaloud', 'aiproofreader'),
+            'data-tts-label-stop' => get_string('stopreading', 'aiproofreader'),
+        ]
+    );
+}
+
 function aiproofreader_render_feedback_block($submission) {
     $out = html_writer::tag('h3', get_string('feedbackheading', 'aiproofreader'));
 
     if (!empty($submission->feedbackgrammar)) {
         $out .= aiproofreader_collapsible_section(
             get_string('feedbackgrammarheading', 'aiproofreader'),
-            format_text($submission->feedbackgrammar, FORMAT_PLAIN),
+            aiproofreader_render_tts_button($submission->feedbackgrammar)
+                . format_text($submission->feedbackgrammar, FORMAT_PLAIN),
             true
         );
     }
@@ -472,7 +503,8 @@ function aiproofreader_render_feedback_block($submission) {
     if (!empty($submission->feedbackassignment)) {
         $out .= aiproofreader_collapsible_section(
             get_string('feedbackassignmentheading', 'aiproofreader'),
-            format_text($submission->feedbackassignment, FORMAT_PLAIN),
+            aiproofreader_render_tts_button($submission->feedbackassignment)
+                . format_text($submission->feedbackassignment, FORMAT_PLAIN),
             true
         );
     }
@@ -480,7 +512,8 @@ function aiproofreader_render_feedback_block($submission) {
     if (!empty($submission->aicomparison)) {
         $out .= aiproofreader_collapsible_section(
             get_string('aicomparisonheading', 'aiproofreader'),
-            format_text($submission->aicomparison, FORMAT_PLAIN),
+            aiproofreader_render_tts_button($submission->aicomparison)
+                . format_text($submission->aicomparison, FORMAT_PLAIN),
             true
         );
     }
