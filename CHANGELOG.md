@@ -2,6 +2,10 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.4.6 (2026090902)
+### Fixed
+- Assignment Import placed the new activity at the very end of its section instead of right after the source Assignment, whenever the new activity was created in that same section (worked correctly when created from a different section). Root cause: Moodle initially places a same-section new activity right where "Add an activity" was clicked - which, in the reported case, was already immediately after the source Assignment. The repositioning code then searched the section for "whatever follows the source Assignment" to insert before, found the new activity itself sitting there, and effectively tried to move it to right before itself - which silently fails and falls back to appending at the end. Now skips the new activity's own id when scanning for the correct insertion point.
+
 ## v0.4.5 (2026090802)
 ### Fixed
 - Moodle's plugin-submission checklist requires the lang string file to be pure data with no PHP concatenation, heredoc, or nowdoc syntax, since AMOS (the translation tool) can't process those even though they work fine in Moodle itself. `defaultaiinstructions_default` used a nowdoc block; converted it to a plain single-quoted string literal with the same content. No functional or wording change.

@@ -725,12 +725,19 @@ function aiproofreader_coursemodule_edit_post_actions($moduleinfo, $course) {
         // Find whichever course module currently follows the source
         // Assignment in its section, so the new activity can be
         // inserted immediately after it (or appended at the end if
-        // the Assignment was already last).
+        // the Assignment was already last). Skip the new activity's
+        // own id: when adding within the same section, Moodle may have
+        // already placed it right after the source Assignment before
+        // this hook runs, which would otherwise make this look for
+        // "the module before itself" and silently fail to reposition.
         $modinfo = get_fast_modinfo($sourcecm->course);
         $sectioncmids = $modinfo->sections[$destsection->section] ?? [];
         $beforemodid = null;
         $foundsource = false;
         foreach ($sectioncmids as $cmid) {
+            if ($cmid == $moduleinfo->coursemodule) {
+                continue;
+            }
             if ($foundsource) {
                 $beforemodid = $cmid;
                 break;
