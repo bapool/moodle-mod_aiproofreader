@@ -488,6 +488,13 @@ function aiproofreader_render_tts_button($text) {
     );
 }
 
+/**
+ * Renders the grammar, assignment, and AI-comparison feedback sections for
+ * a submission's HTML view, as collapsible sections with read-aloud buttons.
+ *
+ * @param \stdClass $submission
+ * @return string HTML
+ */
 function aiproofreader_render_feedback_block($submission) {
     $out = html_writer::tag('h3', get_string('feedbackheading', 'aiproofreader'));
 
@@ -605,6 +612,13 @@ function aiproofreader_get_course_assign_options($courseid, $sectionnum = null) 
     return $options;
 }
 
+/**
+ * Supplies course-page display info for an activity instance, including
+ * custom completion rule data for the "completionsubmit" rule.
+ *
+ * @param \stdClass $coursemodule
+ * @return \cached_cm_info|null
+ */
 function aiproofreader_get_coursemodule_info($coursemodule) {
     global $DB;
 

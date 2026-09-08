@@ -31,9 +31,11 @@ if ($ADMIN->fulltree) {
         return trim($text);
     };
 
-    if ($currentinstructions !== false
-            && trim((string) $currentinstructions) !== ''
-            && $normalizeforcompare($currentinstructions) !== $normalizeforcompare($defaultinstructions)) {
+    if (
+        $currentinstructions !== false
+        && trim((string) $currentinstructions) !== ''
+        && $normalizeforcompare($currentinstructions) !== $normalizeforcompare($defaultinstructions)
+    ) {
         $restoreurl = new moodle_url('/mod/aiproofreader/admin_restore_defaults.php', ['sesskey' => sesskey()]);
         $restorebutton = html_writer::link(
             $restoreurl,

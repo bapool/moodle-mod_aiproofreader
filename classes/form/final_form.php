@@ -219,11 +219,13 @@ class final_form extends \moodleform {
                 $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
             } else {
                 $submission = $this->_customdata['submission'] ?? null;
-                if ($submission
-                        && $submission->initialsubmissiontype === 'text'
-                        && !empty($submission->initialtext)
-                        && aiproofreader_normalize_text_for_comparison($finaltext)
-                            === aiproofreader_normalize_text_for_comparison($submission->initialtext)) {
+                if (
+                    $submission
+                    && $submission->initialsubmissiontype === 'text'
+                    && !empty($submission->initialtext)
+                    && aiproofreader_normalize_text_for_comparison($finaltext)
+                        === aiproofreader_normalize_text_for_comparison($submission->initialtext)
+                ) {
                     $errors['onlinetext_editor'] = get_string('err_nochangesmade', 'aiproofreader');
                 }
             }

@@ -373,13 +373,19 @@ class submission_manager {
 
         $changed = false;
 
-        if ($submission->initialsubmissiontype === 'gdrive' && $submission->initialtext !== null
-                && !empty($submission->initialgdrivelink)) {
+        if (
+            $submission->initialsubmissiontype === 'gdrive'
+            && $submission->initialtext !== null
+            && !empty($submission->initialgdrivelink)
+        ) {
             $submission->initialtext = null;
             $changed = true;
         }
-        if ($submission->finalsubmissiontype === 'gdrive' && $submission->finaltext !== null
-                && !empty($submission->finalgdrivelink)) {
+        if (
+            $submission->finalsubmissiontype === 'gdrive'
+            && $submission->finaltext !== null
+            && !empty($submission->finalgdrivelink)
+        ) {
             $submission->finaltext = null;
             $changed = true;
         }

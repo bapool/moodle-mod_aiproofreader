@@ -55,7 +55,12 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
             );
             $mform->setDefault('importcurrentsectiononly', 1);
 
-            $mform->addElement('static', 'importcurrentsectiononlynote', '', get_string('importcurrentsectiononlynote', 'aiproofreader'));
+            $mform->addElement(
+                'static',
+                'importcurrentsectiononlynote',
+                '',
+                get_string('importcurrentsectiononlynote', 'aiproofreader')
+            );
 
             $assignoptions = [0 => get_string('choosedots')]
                 + aiproofreader_get_course_assign_options($COURSE->id, $this->get_import_section_filter());

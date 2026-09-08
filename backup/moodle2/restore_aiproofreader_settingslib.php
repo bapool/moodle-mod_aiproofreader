@@ -31,5 +31,5 @@
  */
 
 
-// mod_aiproofreader has no special settings for restore.
+// This module has no special settings for restore.
 // This file is required by the restore framework even when empty.

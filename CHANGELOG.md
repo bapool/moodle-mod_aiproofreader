@@ -2,9 +2,9 @@
 
 All notable changes to AI Proofreader are documented here.
 
-## v0.4.3 (2026090602)
-### Added
-- Assignment Import: a "Only show assignments in this section" checkbox (checked by default) narrows the "Assignment to import from" dropdown to the section the new activity is being added to, so courses with many Assignments spread across sections don't force teachers to scan one long combined list. Unchecking it and clicking "Load" (even with nothing selected) refreshes the dropdown to show every Assignment in the course.
+## v0.4.4 (2026090801)
+### Fixed
+- Coding-standard cleanup ahead of Moodle plugin directory submission: reordered `lang/en/aiproofreader.php` into strict alphabetical order (Moodle's lang-file sniff requires this and can't auto-fix past the section comments the file used to have, so those were removed - the file is now one flat sorted list, matching core Moodle convention), added two missing function docblocks in `lib.php`, removed an unneeded `MOODLE_INTERNAL` guard from a namespaced class file, and fixed several PSR-12 multi-line control-structure formatting and comment-capitalization warnings across `view.php`, `final_form.php`, `submission_manager.php`, `settings.php`, `mod_form.php`, and the backup/restore settingslib files. No functional changes.
 
 ## v0.4.3 (2026090603)
 ### Added

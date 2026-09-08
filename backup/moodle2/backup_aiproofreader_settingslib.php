@@ -31,5 +31,5 @@
  */
 
 
-// mod_aiproofreader has no special settings for backup.
+// This module has no special settings for backup.
 // This file is required by the backup framework even when empty.

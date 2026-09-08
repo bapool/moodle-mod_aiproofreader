@@ -25,14 +25,11 @@
 
 namespace mod_aiproofreader;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Reads an existing Assignment course module and produces a prefill data
  * object for the AI Proofreader settings form (add mode).
  */
 class assign_importer {
-
     /**
      * Builds the import data for a given source Assignment course module.
      *

@@ -132,7 +132,7 @@ if (!$isgrader) {
     }
 }
 
-// ---- All output starts here; nothing above this line echoes anything. ----
+// All output starts here - nothing above this line echoes anything.
 
 echo $OUTPUT->header();
 
@@ -223,9 +223,11 @@ if ($isgrader) {
 } else {
     echo aiproofreader_render_instructions($aiproofreader, $cm, $submission->status !== 'draft');
 
-    if ($submission->status === 'feedbackready'
-            && $submission->initialsubmissiontype === 'text'
-            && !empty($submission->initialtext)) {
+    if (
+        $submission->status === 'feedbackready'
+        && $submission->initialsubmissiontype === 'text'
+        && !empty($submission->initialtext)
+    ) {
         echo aiproofreader_collapsible_section(
             get_string('yourdraftheading', 'aiproofreader'),
             format_text($submission->initialtext, FORMAT_PLAIN)
