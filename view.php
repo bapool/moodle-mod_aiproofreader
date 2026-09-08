@@ -94,7 +94,8 @@ if (!$isgrader) {
                 $data->submissiontype,
                 $onlinetext,
                 $data->gdrivelink ?? '',
-                $data->submissionfile ?? 0
+                $data->submissionfile ?? 0,
+                $data->gdrivefile ?? 0
             );
             redirect(new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]));
         }
@@ -123,6 +124,7 @@ if (!$isgrader) {
                 $onlinetext,
                 $data->gdrivelink ?? '',
                 $data->submissionfile ?? 0,
+                $data->gdrivefile ?? 0,
                 $surveydata
             );
             redirect(new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]));

@@ -2,6 +2,25 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.4.3 (2026090602)
+### Added
+- Assignment Import: a "Only show assignments in this section" checkbox (checked by default) narrows the "Assignment to import from" dropdown to the section the new activity is being added to, so courses with many Assignments spread across sections don't force teachers to scan one long combined list. Unchecking it and clicking "Load" (even with nothing selected) refreshes the dropdown to show every Assignment in the course.
+
+## v0.4.3 (2026090603)
+### Added
+- Assignment Import: a "Only show assignments in this section" checkbox (checked by default) narrows the "Assignment to import from" dropdown to the section the new activity is being added to, so courses with many Assignments spread across sections don't force teachers to scan one long combined list. Unchecking it and clicking "Load" (even with nothing selected) refreshes the dropdown to show every Assignment in the course.
+
+### Fixed
+- Assignment Import + Save could fail with "Can't find data record in database" whenever the new activity needed to move to a different section than the one it was created in (the normal case, since it moves next to the source Assignment). The repositioning/hide-source-Assignment logic ran too early - inside `aiproofreader_add_instance()`, before Moodle had finished setting up the new course module's `instance` field and section placement. Moved that logic to the proper `aiproofreader_coursemodule_edit_post_actions()` hook, which Moodle calls once the module is fully set up.
+- `addHelpButton()` on the Assignment Import dropdown referenced a lang string (`importfromassign_help`) that didn't exist under that name (it was defined as `importfromassign_desc` instead), triggering a "Help contents string does not exist" debugging notice whenever debug messages were displayed. Renamed the string to match.
+
+## v0.4.2 (2026090601)
+### Added
+- Google Drive submission type: students can now select a Google Doc directly from their Drive via the standard Moodle file picker's "Google Drive" repository, as an alternative to pasting a link. Both options are shown together - either one satisfies the submission. Picked docs are downloaded and their text extracted the same way as a Word file upload; no live link is stored for this path since the picker returns an actual copy, not a reference.
+
+### Fixed
+- The "Retain Google Doc text" site setting, when off, could clear a Google Drive submission's stored text even when no link existed to fall back on (e.g. a submission made via the new file-picker path), leaving neither a link nor the text behind. The purge now only happens when a link is actually on record.
+
 ## v0.4.1 (2026090301)
 ### Added
 - "Read aloud" buttons on each AI feedback section (Grammar and Spelling, Assignment Specifics, AI notes on your revision) and on the activity description, using the browser's built-in text-to-speech (Web Speech API) - no server-side audio generation or additional AI provider required. Buttons toggle to "Stop reading" while playing, and hide automatically if the student's browser has no speech synthesis support.

@@ -47,7 +47,18 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
 
             $mform->addElement('static', 'importfromassigndesc', '', get_string('importfromassigndesc', 'aiproofreader'));
 
-            $assignoptions = [0 => get_string('choosedots')] + aiproofreader_get_course_assign_options($COURSE->id);
+            $mform->addElement(
+                'advcheckbox',
+                'importcurrentsectiononly',
+                '',
+                get_string('importcurrentsectiononlylabel', 'aiproofreader')
+            );
+            $mform->setDefault('importcurrentsectiononly', 1);
+
+            $mform->addElement('static', 'importcurrentsectiononlynote', '', get_string('importcurrentsectiononlynote', 'aiproofreader'));
+
+            $assignoptions = [0 => get_string('choosedots')]
+                + aiproofreader_get_course_assign_options($COURSE->id, $this->get_import_section_filter());
             $mform->addElement(
                 'select',
                 'importassigncmid',
@@ -197,6 +208,7 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
     public function definition_after_data() {
         parent::definition_after_data();
 
+        global $COURSE;
         $mform = $this->_form;
 
         if (!$mform->elementExists('loadimportassign')) {
@@ -208,11 +220,28 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
         }
 
         $assigncmid = optional_param('importassigncmid', 0, PARAM_INT);
-        if ($assigncmid > 0) {
+        $validoptions = aiproofreader_get_course_assign_options($COURSE->id, $this->get_import_section_filter());
+
+        if ($assigncmid > 0 && array_key_exists($assigncmid, $validoptions)) {
             $importdata = \mod_aiproofreader\assign_importer::build_import_data($assigncmid);
             $importdata->sourceassigncmid = $assigncmid;
             $mform->setConstants((array) $importdata);
         }
+    }
+
+    /**
+     * The course section number to restrict the Assignment import dropdown
+     * to, based on the "Only show items in this section" checkbox - or null
+     * for no restriction (checkbox unchecked, or no target section known).
+     *
+     * @return int|null
+     */
+    protected function get_import_section_filter() {
+        $currentsectiononly = (bool) optional_param('importcurrentsectiononly', 1, PARAM_BOOL);
+        if (!$currentsectiononly) {
+            return null;
+        }
+        return isset($this->current->section) ? (int) $this->current->section : null;
     }
 
     /**

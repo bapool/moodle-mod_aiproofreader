@@ -107,6 +107,17 @@ class final_form extends \moodleform {
             if ($multipletypes) {
                 $mform->hideIf('gdrivelink', 'submissiontype', 'neq', 'gdrive');
             }
+
+            $mform->addElement(
+                'filepicker',
+                'gdrivefile',
+                get_string('gdrivefilelabel', 'aiproofreader'),
+                null,
+                ['maxbytes' => 10485760, 'accepted_types' => ['.docx']]
+            );
+            if ($multipletypes) {
+                $mform->hideIf('gdrivefile', 'submissiontype', 'neq', 'gdrive');
+            }
         }
 
         // Optional student survey - collected only when the site has the
@@ -219,10 +230,16 @@ class final_form extends \moodleform {
         }
 
         if ($data['submissiontype'] === 'gdrive') {
-            if (empty($data['gdrivelink']) || !filter_var($data['gdrivelink'], FILTER_VALIDATE_URL)) {
-                $errors['gdrivelink'] = get_string('err_invalidgdrivelink', 'aiproofreader');
-            } else if (empty(\mod_aiproofreader\submission_manager::fetch_gdrive_text($data['gdrivelink']))) {
-                $errors['gdrivelink'] = get_string('gdrivefetchfailed', 'aiproofreader');
+            $gdrivefileitemid = file_get_submitted_draft_itemid('gdrivefile');
+            $gdrivefiles = file_get_drafarea_files($gdrivefileitemid);
+            $filepicked = !empty($gdrivefiles) && !empty($gdrivefiles->list);
+
+            if (!$filepicked) {
+                if (empty($data['gdrivelink']) || !filter_var($data['gdrivelink'], FILTER_VALIDATE_URL)) {
+                    $errors['gdrivelink'] = get_string('err_invalidgdrivelink', 'aiproofreader');
+                } else if (empty(\mod_aiproofreader\submission_manager::fetch_gdrive_text($data['gdrivelink']))) {
+                    $errors['gdrivelink'] = get_string('gdrivefetchfailed', 'aiproofreader');
+                }
             }
         }
 

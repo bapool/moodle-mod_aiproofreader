@@ -576,7 +576,15 @@ function aiproofreader_supports($feature) {
  * @param int $courseid
  * @return array cmid => activity name
  */
-function aiproofreader_get_course_assign_options($courseid) {
+/**
+ * Builds the "Assignment to import from" dropdown options: every visible
+ * Assignment activity in the course, optionally narrowed to one section.
+ *
+ * @param int $courseid
+ * @param int|null $sectionnum Course section number to restrict to, or null for the whole course
+ * @return array cmid => name
+ */
+function aiproofreader_get_course_assign_options($courseid, $sectionnum = null) {
     $modinfo = get_fast_modinfo($courseid);
     $options = [];
 
@@ -585,9 +593,13 @@ function aiproofreader_get_course_assign_options($courseid) {
     }
 
     foreach ($modinfo->instances['assign'] as $cm) {
-        if ($cm->uservisible) {
-            $options[$cm->id] = format_string($cm->name);
+        if (!$cm->uservisible) {
+            continue;
         }
+        if ($sectionnum !== null && (int) $cm->sectionnum !== (int) $sectionnum) {
+            continue;
+        }
+        $options[$cm->id] = format_string($cm->name);
     }
 
     return $options;
@@ -652,59 +664,81 @@ function aiproofreader_add_instance($aiproofreader, $mform = null) {
 
     aiproofreader_grade_item_update($aiproofreader);
 
-    // Assignment import: reposition right after the source Assignment,
-    // copy its restrict-access conditions, and hide the now-superseded
-    // Assignment (left in place, not deleted, for the teacher's reference).
-    if (!empty($aiproofreader->sourceassigncmid)) {
-        require_once($CFG->dirroot . '/course/lib.php');
+    return $aiproofreader->id;
+}
 
-        $sourcecmid = (int) $aiproofreader->sourceassigncmid;
-        $sourcecm = $DB->get_record('course_modules', ['id' => $sourcecmid]);
+/**
+ * Hook Moodle calls after a course module has been fully created or
+ * updated (course_modules.instance is guaranteed to be set correctly by
+ * this point, unlike inside add_instance()/update_instance() themselves).
+ *
+ * Used here to finish an Assignment Import: reposition the new activity
+ * right after the source Assignment, copy its restrict-access conditions,
+ * and hide the now-superseded Assignment (left in place, not deleted, for
+ * the teacher's reference).
+ *
+ * This runs for every course module add/edit sitewide, not just ours, so
+ * it must check the module type itself before doing anything.
+ *
+ * @param \stdClass $moduleinfo
+ * @param \stdClass $course
+ * @return \stdClass The (possibly unmodified) moduleinfo, as this hook's contract requires
+ */
+function aiproofreader_coursemodule_edit_post_actions($moduleinfo, $course) {
+    global $CFG, $DB;
 
-        if ($sourcecm) {
-            // Copy the raw restriction rule directly - this avoids needing
-            // to replicate Moodle's JS-driven Restrict Access tree UI.
-            $DB->set_field(
-                'course_modules',
-                'availability',
-                $sourcecm->availability,
-                ['id' => $aiproofreader->coursemodule]
-            );
-
-            $destsection = $DB->get_record('course_sections', ['id' => $sourcecm->section], '*', MUST_EXIST);
-
-            // Find whichever course module currently follows the source
-            // Assignment in its section, so the new activity can be
-            // inserted immediately after it (or appended at the end if
-            // the Assignment was already last).
-            $modinfo = get_fast_modinfo($sourcecm->course);
-            $sectioncmids = $modinfo->sections[$destsection->section] ?? [];
-            $beforemodid = null;
-            $foundsource = false;
-            foreach ($sectioncmids as $cmid) {
-                if ($foundsource) {
-                    $beforemodid = $cmid;
-                    break;
-                }
-                if ($cmid == $sourcecmid) {
-                    $foundsource = true;
-                }
-            }
-
-            $newcm = $DB->get_record('course_modules', ['id' => $aiproofreader->coursemodule], '*', MUST_EXIST);
-            $beforemod = $beforemodid
-                ? $DB->get_record('course_modules', ['id' => $beforemodid], '*', MUST_EXIST)
-                : null;
-
-            moveto_module($newcm, $destsection, $beforemod);
-
-            set_coursemodule_visible($sourcecmid, 0);
-
-            rebuild_course_cache($sourcecm->course, true);
-        }
+    if (($moduleinfo->modulename ?? '') !== 'aiproofreader' || empty($moduleinfo->sourceassigncmid)) {
+        return $moduleinfo;
     }
 
-    return $aiproofreader->id;
+    require_once($CFG->dirroot . '/course/lib.php');
+
+    $sourcecmid = (int) $moduleinfo->sourceassigncmid;
+    $sourcecm = $DB->get_record('course_modules', ['id' => $sourcecmid]);
+
+    if ($sourcecm) {
+        // Copy the raw restriction rule directly - this avoids needing
+        // to replicate Moodle's JS-driven Restrict Access tree UI.
+        $DB->set_field(
+            'course_modules',
+            'availability',
+            $sourcecm->availability,
+            ['id' => $moduleinfo->coursemodule]
+        );
+
+        $destsection = $DB->get_record('course_sections', ['id' => $sourcecm->section], '*', MUST_EXIST);
+
+        // Find whichever course module currently follows the source
+        // Assignment in its section, so the new activity can be
+        // inserted immediately after it (or appended at the end if
+        // the Assignment was already last).
+        $modinfo = get_fast_modinfo($sourcecm->course);
+        $sectioncmids = $modinfo->sections[$destsection->section] ?? [];
+        $beforemodid = null;
+        $foundsource = false;
+        foreach ($sectioncmids as $cmid) {
+            if ($foundsource) {
+                $beforemodid = $cmid;
+                break;
+            }
+            if ($cmid == $sourcecmid) {
+                $foundsource = true;
+            }
+        }
+
+        $newcm = $DB->get_record('course_modules', ['id' => $moduleinfo->coursemodule], '*', MUST_EXIST);
+        $beforemod = $beforemodid
+            ? $DB->get_record('course_modules', ['id' => $beforemodid], '*', MUST_EXIST)
+            : null;
+
+        moveto_module($newcm, $destsection, $beforemod);
+
+        set_coursemodule_visible($sourcecmid, 0);
+
+        rebuild_course_cache($sourcecm->course, true);
+    }
+
+    return $moduleinfo;
 }
 
 /**

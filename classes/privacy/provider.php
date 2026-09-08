@@ -260,6 +260,18 @@ class provider implements
                     'finalsubmission',
                     $submission->id
                 );
+                writer::with_context($context)->export_area_files(
+                    [$pluginname],
+                    'mod_aiproofreader',
+                    'draftgdrivefile',
+                    $submission->id
+                );
+                writer::with_context($context)->export_area_files(
+                    [$pluginname],
+                    'mod_aiproofreader',
+                    'finalgdrivefile',
+                    $submission->id
+                );
 
                 $survey = $DB->get_record('aiproofreader_studentsurvey', ['submissionid' => $submission->id]);
                 if ($survey) {
@@ -343,6 +355,8 @@ class provider implements
         $fs = get_file_storage();
         $fs->delete_area_files($context->id, 'mod_aiproofreader', 'draftsubmission');
         $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalsubmission');
+        $fs->delete_area_files($context->id, 'mod_aiproofreader', 'draftgdrivefile');
+        $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalgdrivefile');
     }
 
     /**
@@ -379,6 +393,8 @@ class provider implements
                 $fs = get_file_storage();
                 $fs->delete_area_files($context->id, 'mod_aiproofreader', 'draftsubmission', $submission->id);
                 $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalsubmission', $submission->id);
+                $fs->delete_area_files($context->id, 'mod_aiproofreader', 'draftgdrivefile', $submission->id);
+                $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalgdrivefile', $submission->id);
             }
 
             // Anonymize this user's grader reference on any other student's submission, rather
@@ -447,6 +463,8 @@ class provider implements
             $DB->delete_records('aiproofreader_grade', ['submissionid' => $submission->id]);
             $fs->delete_area_files($context->id, 'mod_aiproofreader', 'draftsubmission', $submission->id);
             $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalsubmission', $submission->id);
+            $fs->delete_area_files($context->id, 'mod_aiproofreader', 'draftgdrivefile', $submission->id);
+            $fs->delete_area_files($context->id, 'mod_aiproofreader', 'finalgdrivefile', $submission->id);
         }
 
         $DB->delete_records_select(

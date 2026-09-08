@@ -7,7 +7,7 @@ Built for National Trail Local Schools as part of the K-12 AI Infrastructure Pro
 ## How it works
 
 1. The teacher creates an AI Proofreader activity with assignment instructions, a grade level, and optional additional AI instructions (a private field only the AI sees - useful for a rubric's key points or specific concepts a strong answer should cover).
-2. The student submits a draft (typed text, an uploaded Word document, or a Google Drive link).
+2. The student submits a draft (typed text, an uploaded Word document, a pasted Google Drive link, or a Google Doc selected directly from their Drive via the file picker).
 3. The AI generates feedback split into two parts: **Grammar and Spelling**, and **Assignment Specifics** - calibrated to the student's grade level and target reading level (Lexile).
 4. If surveys are turned on (see below), the student completes a short survey, then submits a final version. If surveys are off, the student just submits a final version.
 5. The AI compares the draft, the feedback, and the final version, and generates a 1-5 score for the teacher on how well the student incorporated the feedback - weighted so it doesn't penalize students for skipping feedback that was optional depth versus something that was actually required.
@@ -32,10 +32,10 @@ Each activity instance has its own:
 - **Additional AI instructions** - never shown to students; use this for rubric basics or specific concepts a strong response should cover
 - **Additional files** - optional attachments (e.g. a lab sheet) shown to students alongside the instructions
 - **Grade level** - a combined grade + target Lexile dropdown (3-12), used to calibrate the AI's vocabulary and complexity
-- **Submission types** - online text, Word file upload, and/or a Google Drive link (at least one required)
+- **Submission types** - online text, Word file upload, and/or Google Drive (a pasted link, or a Google Doc picked directly from Drive via the file picker - either satisfies this type) (at least one required)
 - Standard availability, grade (points, category, pass grade), and completion settings
 
-When adding a brand-new activity, teachers can also optionally **import from an existing Assignment** in the same course - a dropdown and "Load" button prefill the name, description, dates, grade, grade category, and completion settings from it. Saving then automatically positions the new activity directly after the source Assignment, copies its Restrict Access conditions, and hides the source Assignment from students (it isn't deleted).
+When adding a brand-new activity, teachers can also optionally **import from an existing Assignment** in the same course - a dropdown and "Load" button prefill the name, description, dates, grade, grade category, and completion settings from it. The dropdown defaults to showing only Assignments in the section the new activity is being added to (a checkbox lets a teacher broaden it to the whole course - after changing it, click "Load" once to refresh the list, even with nothing selected yet). Saving then automatically positions the new activity directly after the source Assignment, copies its Restrict Access conditions, and hides the source Assignment from students (it isn't deleted).
 
 Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from this plugin):
 - **Survey on/off** - off by default. While off, no survey questions are shown to anyone, and this plugin runs in feedback-only mode.
@@ -50,7 +50,8 @@ The activity description and each AI feedback section (Grammar and Spelling, Ass
 
 - No automated PHPUnit or Behat tests.
 - The "Hide grader identity from students" setting is stored but not yet enforced anywhere in the UI, since nothing currently displays grader identity to students in the first place.
-- Google Drive submissions require the document to be shared as "Anyone with the link can view" (or comment/edit) - the plugin cannot read privately-shared docs and will reject the submission at the form-validation stage if it can't read the content.
+- Google Drive submissions made by pasting a link require the document to be shared as "Anyone with the link can view" (or comment/edit) - the plugin cannot read privately-shared docs and will reject the submission at the form-validation stage if it can't read the content. This sharing requirement does not apply when the student instead selects the doc via the Google Drive file picker, since that downloads a copy through the student's own authenticated Drive connection rather than fetching a public export link.
+- Google Docs selected via the file picker are downloaded as `.docx` at submission time (governed by the site's Google Drive repository configuration, under Site Administration -> Plugins -> Repositories); no live link back to the original Doc is stored, so `initialgdrivelink`/`finalgdrivelink` stay empty for submissions made this way.
 - A draft that's abandoned before final submission (student never finishes) can leave fetched Google Doc text sitting in `initialtext` even with text retention off, since that text is only purged once the final-submission AI comparison step runs. The weekly cleanup task in local_aiproofreaderreport will eventually remove the whole submission row if the activity or student account is later deleted, but does not otherwise sweep abandoned drafts on a timer.
 - The 3-sentence minimum on draft submissions only applies to the online text type (a simple terminal-punctuation heuristic on the plain-text-converted content) - file uploads and Google Drive links aren't length-checked at submission time.
 - Assignment Import doesn't carry over the grade if the source Assignment uses a grading scale instead of points - AI Proofreader only supports point grading, so the maximum grade is left at its default and needs setting manually in that case.
@@ -102,8 +103,8 @@ One row per student per activity instance (no multiple attempts). Unique on (`ai
 | `userid` | int | FK to `user` - the student |
 | `status` | char(20) | `draft`, `feedbackpending`, `feedbackready`, `finalsubmitted`, or `graded` |
 | `initialsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
-| `initialtext` | text | Draft text - typed directly, extracted from an uploaded Word file, or fetched from a Google Doc |
-| `initialgdrivelink` | char(255) | Draft Google Drive link, if that type was used |
+| `initialtext` | text | Draft text - typed directly, extracted from an uploaded Word file, fetched from a pasted Google Drive link, or extracted from a Google Doc selected via the file picker |
+| `initialgdrivelink` | char(255) | Draft Google Drive link, only populated when that submission was made by pasting a link (empty when made via the Google Drive file picker instead) |
 | `initialtimesubmitted` | int | Unix timestamp |
 | `feedbackgrammar` | text | AI feedback: Grammar and Spelling |
 | `feedbackassignment` | text | AI feedback: Assignment Specifics |
@@ -111,7 +112,7 @@ One row per student per activity instance (no multiple attempts). Unique on (`ai
 | `feedbackaimodel` | char(255) | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
 | `finalsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
 | `finaltext` | text | Final text, same sourcing as `initialtext` |
-| `finalgdrivelink` | char(255) | Final Google Drive link, if that type was used |
+| `finalgdrivelink` | char(255) | Final Google Drive link, only populated when that submission was made by pasting a link (empty when made via the Google Drive file picker instead) |
 | `finaltimesubmitted` | int | Unix timestamp |
 | `aicomparison` | text | AI's narrative comparison of draft vs. feedback vs. final, shown to both student and teacher |
 | `aicomparisontimecreated` | int | Unix timestamp |

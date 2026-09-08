@@ -65,6 +65,20 @@ class submission_manager {
     }
 
     /**
+     * Whether a file has been added to the given draft file area.
+     *
+     * @param int $draftitemid
+     * @return bool
+     */
+    protected static function draft_area_has_files($draftitemid) {
+        if (empty($draftitemid)) {
+            return false;
+        }
+        $files = file_get_drafarea_files($draftitemid);
+        return !empty($files) && !empty($files->list);
+    }
+
+    /**
      * Saves the student's draft, then generates AI feedback for it.
      *
      * @param \stdClass $aiproofreader
@@ -74,6 +88,7 @@ class submission_manager {
      * @param string $text
      * @param string $gdrivelink
      * @param int $draftfileitemid Draft area item id from the filepicker, if type is file
+     * @param int $gdrivefileitemid Draft area item id from the Google Doc filepicker, if type is gdrive
      * @return \stdClass The updated submission record
      */
     public static function save_draft(
@@ -83,7 +98,8 @@ class submission_manager {
         $type,
         $text,
         $gdrivelink,
-        $draftfileitemid
+        $draftfileitemid,
+        $gdrivefileitemid
     ) {
         global $DB;
 
@@ -94,8 +110,20 @@ class submission_manager {
         if ($type === 'text') {
             $submission->initialtext = $text;
         } else if ($type === 'gdrive') {
-            $submission->initialgdrivelink = $gdrivelink;
-            $submission->initialtext = self::fetch_gdrive_text($gdrivelink);
+            if (self::draft_area_has_files($gdrivefileitemid)) {
+                file_save_draft_area_files(
+                    $gdrivefileitemid,
+                    $context->id,
+                    'mod_aiproofreader',
+                    'draftgdrivefile',
+                    $submission->id,
+                    ['subdirs' => 0, 'maxfiles' => 1]
+                );
+                $submission->initialtext = self::extract_text_from_stored_file($context, $submission->id, 'draftgdrivefile');
+            } else {
+                $submission->initialgdrivelink = $gdrivelink;
+                $submission->initialtext = self::fetch_gdrive_text($gdrivelink);
+            }
         } else if ($type === 'file') {
             file_save_draft_area_files(
                 $draftfileitemid,
@@ -257,6 +285,7 @@ class submission_manager {
      * @param string $text
      * @param string $gdrivelink
      * @param int $finalfileitemid
+     * @param int $gdrivefileitemid Draft area item id from the Google Doc filepicker, if type is gdrive
      * @param array $surveydata
      * @return \stdClass The updated submission record
      */
@@ -268,6 +297,7 @@ class submission_manager {
         $text,
         $gdrivelink,
         $finalfileitemid,
+        $gdrivefileitemid,
         array $surveydata
     ) {
         global $DB;
@@ -279,8 +309,20 @@ class submission_manager {
         if ($type === 'text') {
             $submission->finaltext = $text;
         } else if ($type === 'gdrive') {
-            $submission->finalgdrivelink = $gdrivelink;
-            $submission->finaltext = self::fetch_gdrive_text($gdrivelink);
+            if (self::draft_area_has_files($gdrivefileitemid)) {
+                file_save_draft_area_files(
+                    $gdrivefileitemid,
+                    $context->id,
+                    'mod_aiproofreader',
+                    'finalgdrivefile',
+                    $submission->id,
+                    ['subdirs' => 0, 'maxfiles' => 1]
+                );
+                $submission->finaltext = self::extract_text_from_stored_file($context, $submission->id, 'finalgdrivefile');
+            } else {
+                $submission->finalgdrivelink = $gdrivelink;
+                $submission->finaltext = self::fetch_gdrive_text($gdrivelink);
+            }
         } else if ($type === 'file') {
             file_save_draft_area_files(
                 $finalfileitemid,
@@ -331,11 +373,13 @@ class submission_manager {
 
         $changed = false;
 
-        if ($submission->initialsubmissiontype === 'gdrive' && $submission->initialtext !== null) {
+        if ($submission->initialsubmissiontype === 'gdrive' && $submission->initialtext !== null
+                && !empty($submission->initialgdrivelink)) {
             $submission->initialtext = null;
             $changed = true;
         }
-        if ($submission->finalsubmissiontype === 'gdrive' && $submission->finaltext !== null) {
+        if ($submission->finalsubmissiontype === 'gdrive' && $submission->finaltext !== null
+                && !empty($submission->finalgdrivelink)) {
             $submission->finaltext = null;
             $changed = true;
         }
