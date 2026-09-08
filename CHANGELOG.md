@@ -2,6 +2,10 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.4.5 (2026090802)
+### Fixed
+- Moodle's plugin-submission checklist requires the lang string file to be pure data with no PHP concatenation, heredoc, or nowdoc syntax, since AMOS (the translation tool) can't process those even though they work fine in Moodle itself. `defaultaiinstructions_default` used a nowdoc block; converted it to a plain single-quoted string literal with the same content. No functional or wording change.
+
 ## v0.4.4 (2026090801)
 ### Fixed
 - Coding-standard cleanup ahead of Moodle plugin directory submission: reordered `lang/en/aiproofreader.php` into strict alphabetical order (Moodle's lang-file sniff requires this and can't auto-fix past the section comments the file used to have, so those were removed - the file is now one flat sorted list, matching core Moodle convention), added two missing function docblocks in `lib.php`, removed an unneeded `MOODLE_INTERNAL` guard from a namespaced class file, and fixed several PSR-12 multi-line control-structure formatting and comment-capitalization warnings across `view.php`, `final_form.php`, `submission_manager.php`, `settings.php`, `mod_form.php`, and the backup/restore settingslib files. No functional changes.
