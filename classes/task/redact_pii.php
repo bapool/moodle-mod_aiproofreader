@@ -38,6 +38,8 @@ namespace mod_aiproofreader\task;
  */
 class redact_pii extends \core\task\scheduled_task {
     /**
+     * Returns the name of this task, shown in the scheduled tasks admin UI.
+     *
      * @return string
      */
     public function get_name() {
