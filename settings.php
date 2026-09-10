@@ -71,4 +71,25 @@ if ($ADMIN->fulltree) {
         get_string('settings_surveyheading', 'aiproofreader'),
         get_string('settings_surveyheading_desc', 'aiproofreader')
     ));
+
+    $settings->add(new admin_setting_heading(
+        'aiproofreader/piiredactionheading',
+        get_string('settings_piiredactionheading', 'aiproofreader'),
+        get_string('settings_piiredactionheading_desc', 'aiproofreader')
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'aiproofreader/piiredactionenabled',
+        get_string('piiredactionenabled', 'aiproofreader'),
+        get_string('piiredactionenabled_desc', 'aiproofreader'),
+        0
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'aiproofreader/piiredactionbatchsize',
+        get_string('piiredactionbatchsize', 'aiproofreader'),
+        get_string('piiredactionbatchsize_desc', 'aiproofreader'),
+        200,
+        PARAM_INT
+    ));
 }

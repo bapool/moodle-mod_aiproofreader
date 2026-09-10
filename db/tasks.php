@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for mod_aiproofreader.
+ * Scheduled tasks for mod_aiproofreader.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
@@ -24,8 +24,14 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026091101;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.5.1';
+$tasks = [
+    [
+        'classname' => '\mod_aiproofreader\task\redact_pii',
+        'blocking' => 0,
+        'minute' => '30',
+        'hour' => '2',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+    ],
+];

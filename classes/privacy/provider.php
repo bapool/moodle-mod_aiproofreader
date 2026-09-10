@@ -60,12 +60,14 @@ class provider implements
                 'userid' => 'privacy:metadata:aiproofreader_submission:userid',
                 'status' => 'privacy:metadata:aiproofreader_submission:status',
                 'initialtext' => 'privacy:metadata:aiproofreader_submission:initialtext',
+                'initialtextredacted' => 'privacy:metadata:aiproofreader_submission:initialtextredacted',
                 'initialgdrivelink' => 'privacy:metadata:aiproofreader_submission:initialgdrivelink',
                 'initialtimesubmitted' => 'privacy:metadata:aiproofreader_submission:initialtimesubmitted',
                 'feedbackgrammar' => 'privacy:metadata:aiproofreader_submission:feedbackgrammar',
                 'feedbackassignment' => 'privacy:metadata:aiproofreader_submission:feedbackassignment',
                 'feedbackaimodel' => 'privacy:metadata:aiproofreader_submission:feedbackaimodel',
                 'finaltext' => 'privacy:metadata:aiproofreader_submission:finaltext',
+                'finaltextredacted' => 'privacy:metadata:aiproofreader_submission:finaltextredacted',
                 'finalgdrivelink' => 'privacy:metadata:aiproofreader_submission:finalgdrivelink',
                 'finaltimesubmitted' => 'privacy:metadata:aiproofreader_submission:finaltimesubmitted',
                 'aicomparison' => 'privacy:metadata:aiproofreader_submission:aicomparison',
@@ -119,6 +121,15 @@ class provider implements
 
         $collection->add_subsystem_link('core_files', [], 'privacy:metadata:core_files');
         $collection->add_subsystem_link('core_ai', [], 'privacy:metadata:core_ai');
+
+        // When a student submits via a Google Drive link, the plugin fetches
+        // the document's plain text from Google's export endpoint so it can
+        // be shown to the AI and stored. Only the document URL the student
+        // provided is sent - no Moodle user identifier (name, email, user
+        // ID) is included in that request.
+        $collection->add_external_location_link('google_drive', [
+            'docurl' => 'privacy:metadata:google_drive:docurl',
+        ], 'privacy:metadata:google_drive');
 
         return $collection;
     }
@@ -228,6 +239,7 @@ class provider implements
                     'status' => $submission->status,
                     'initialsubmissiontype' => $submission->initialsubmissiontype,
                     'initialtext' => $submission->initialtext,
+                    'initialtextredacted' => $submission->initialtextredacted,
                     'initialgdrivelink' => $submission->initialgdrivelink,
                     'initialtimesubmitted' => $submission->initialtimesubmitted
                         ? transform::datetime($submission->initialtimesubmitted) : null,
@@ -236,6 +248,7 @@ class provider implements
                     'feedbackaimodel' => $submission->feedbackaimodel,
                     'finalsubmissiontype' => $submission->finalsubmissiontype,
                     'finaltext' => $submission->finaltext,
+                    'finaltextredacted' => $submission->finaltextredacted,
                     'finalgdrivelink' => $submission->finalgdrivelink,
                     'finaltimesubmitted' => $submission->finaltimesubmitted
                         ? transform::datetime($submission->finaltimesubmitted) : null,

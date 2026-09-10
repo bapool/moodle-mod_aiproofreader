@@ -40,6 +40,9 @@
         <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="draft" SEQUENCE="false" COMMENT="draft, feedbackpending, feedbackready, finalsubmitted, graded"/>
         <FIELD NAME="initialsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
         <FIELD NAME="initialtext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Draft online text submission"/>
+        <FIELD NAME="initialtextredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of initialtext for de-identified release, populated by the nightly PII redaction task"/>
+        <FIELD NAME="initialtextredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When initialtextredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
+        <FIELD NAME="initialtextpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into initialtextredacted"/>
         <FIELD NAME="initialgdrivelink" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="initialtimesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="feedbackgrammar" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI feedback: Grammar and Spelling"/>
@@ -48,6 +51,9 @@
         <FIELD NAME="feedbackaimodel" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Label identifying the AI model/provider that generated the feedback"/>
         <FIELD NAME="finalsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
         <FIELD NAME="finaltext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Final online text submission"/>
+        <FIELD NAME="finaltextredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of finaltext for de-identified release, populated by the nightly PII redaction task"/>
+        <FIELD NAME="finaltextredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When finaltextredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
+        <FIELD NAME="finaltextpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into finaltextredacted"/>
         <FIELD NAME="finalgdrivelink" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="finaltimesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="aicomparison" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI analysis of whether feedback was followed"/>

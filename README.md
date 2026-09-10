@@ -37,6 +37,9 @@ Each activity instance has its own:
 
 When adding a brand-new activity, teachers can also optionally **import from an existing Assignment** in the same course - a dropdown and "Load" button prefill the name, description, dates, grade, grade category, and completion settings from it. The dropdown defaults to showing only Assignments in the section the new activity is being added to (a checkbox lets a teacher broaden it to the whole course - after changing it, click "Load" once to refresh the list, even with nothing selected yet). Saving then automatically positions the new activity directly after the source Assignment, copies its Restrict Access conditions, and hides the source Assignment from students (it isn't deleted).
 
+Site-wide, controlled from this plugin's own settings (Site administration -> Plugins -> Activity modules -> AI Proofreader):
+- **PII redaction** - off by default. When enabled, a nightly scheduled task creates a de-identified copy of each not-yet-processed draft/final submission, for safer use when releasing student writing publicly (see Known limitations for details). A batch size setting bounds how many submissions of each type it will process per run.
+
 Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from this plugin):
 - **Survey on/off** - off by default. While off, no survey questions are shown to anyone, and this plugin runs in feedback-only mode.
 - **Per-question show/hide and custom wording** - for each of the 5 student and 6 teacher survey questions (plus each side's free-text box).
@@ -55,6 +58,7 @@ The activity description and each AI feedback section (Grammar and Spelling, Ass
 - A draft that's abandoned before final submission (student never finishes) can leave fetched Google Doc text sitting in `initialtext` even with text retention off, since that text is only purged once the final-submission AI comparison step runs. The weekly cleanup task in local_aiproofreaderreport will eventually remove the whole submission row if the activity or student account is later deleted, but does not otherwise sweep abandoned drafts on a timer.
 - The 3-sentence minimum on draft submissions only applies to the online text type (a simple terminal-punctuation heuristic on the plain-text-converted content) - file uploads and Google Drive links aren't length-checked at submission time.
 - Assignment Import doesn't carry over the grade if the source Assignment uses a grading scale instead of points - AI Proofreader only supports point grading, so the maximum grade is left at its default and needs setting manually in that case.
+- The nightly PII redaction task's output is AI-generated and not guaranteed to be complete or accurate - it can miss a name, or occasionally over-redact something that isn't actually personal information (e.g. an unusual word it mistakes for a name). It is not a substitute for a human review pass before any writing is actually published; the stored per-submission placeholder count is meant as a quick spot-check aid, not a guarantee.
 
 ## License
 
@@ -104,6 +108,9 @@ One row per student per activity instance (no multiple attempts). Unique on (`ai
 | `status` | char(20) | `draft`, `feedbackpending`, `feedbackready`, `finalsubmitted`, or `graded` |
 | `initialsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
 | `initialtext` | text | Draft text - typed directly, extracted from an uploaded Word file, fetched from a pasted Google Drive link, or extracted from a Google Doc selected via the file picker |
+| `initialtextredacted` | text | AI-redacted, de-identified copy of `initialtext`, populated by the nightly PII redaction task (off by default) - never overwrites the original |
+| `initialtextredactedat` | int(10) | When `initialtextredacted` was generated; null means not yet processed |
+| `initialtextpiicount` | int(10) | Number of PII placeholders inserted into `initialtextredacted` |
 | `initialgdrivelink` | char(255) | Draft Google Drive link, only populated when that submission was made by pasting a link (empty when made via the Google Drive file picker instead) |
 | `initialtimesubmitted` | int | Unix timestamp |
 | `feedbackgrammar` | text | AI feedback: Grammar and Spelling |
@@ -112,6 +119,9 @@ One row per student per activity instance (no multiple attempts). Unique on (`ai
 | `feedbackaimodel` | char(255) | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
 | `finalsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
 | `finaltext` | text | Final text, same sourcing as `initialtext` |
+| `finaltextredacted` | text | AI-redacted, de-identified copy of `finaltext` - see `initialtextredacted` above |
+| `finaltextredactedat` | int(10) | When `finaltextredacted` was generated; null means not yet processed |
+| `finaltextpiicount` | int(10) | Number of PII placeholders inserted into `finaltextredacted` |
 | `finalgdrivelink` | char(255) | Final Google Drive link, only populated when that submission was made by pasting a link (empty when made via the Google Drive file picker instead) |
 | `finaltimesubmitted` | int | Unix timestamp |
 | `aicomparison` | text | AI's narrative comparison of draft vs. feedback vs. final, shown to both student and teacher |

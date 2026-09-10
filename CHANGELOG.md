@@ -2,6 +2,14 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.5.1 (2026091101)
+### Fixed
+- Moodle plugin review flagged (HIGH, approval blocker) that the Google Drive text-fetch call in `submission_manager.php` (a direct `curl` request to Google's document export endpoint) wasn't declared in the Privacy provider's metadata. Added `add_external_location_link('google_drive', ...)` documenting this: only the document URL the student provided is sent to Google - no Moodle user identifier (name, email, user ID) is included in that request.
+
+## v0.5.0 (2026091001)
+### Added
+- Nightly PII redaction (off by default - enable under Site administration -> Plugins -> Activity modules -> AI Proofreader): a new scheduled task sends each not-yet-processed draft/final submission to the AI and stores a de-identified copy in new `initialtextredacted`/`finaltextredacted` fields, replacing personal names with "Fname"/"Lname" and emails, phone numbers, and street addresses with generic placeholders. The original text is never modified or removed - this is purely an additional, separate copy intended for safer use when releasing student writing publicly. The prompt explicitly excludes historical figures, authors, and other public figures referenced as part of the assignment topic (e.g. "George Washington" in a history essay) from redaction, since only real personal identification is the concern. Progress is tracked per-submission (not by a time cutoff), so an interrupted run or a growing backlog is simply picked up again the next night, bounded by a configurable batch size per run. A per-submission count of redaction placeholders is also stored, as a quick signal for spot-checking before anything is actually released - AI-based redaction isn't perfect and this is not a substitute for a human review pass ahead of publishing.
+
 ## v0.4.6 (2026090902)
 ### Fixed
 - Assignment Import placed the new activity at the very end of its section instead of right after the source Assignment, whenever the new activity was created in that same section (worked correctly when created from a different section). Root cause: Moodle initially places a same-section new activity right where "Add an activity" was clicked - which, in the reported case, was already immediately after the source Assignment. The repositioning code then searched the section for "whatever follows the source Assignment" to insert before, found the new activity itself sitting there, and effectively tried to move it to right before itself - which silently fails and falls back to appending at the end. Now skips the new activity's own id when scanning for the correct insertion point.

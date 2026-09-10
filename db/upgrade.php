@@ -260,5 +260,76 @@ function xmldb_aiproofreader_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026081100, 'aiproofreader');
     }
 
+    if ($oldversion < 2026091000) {
+        // Nightly PII redaction: AI-generated de-identified copies of the
+        // draft/final text, kept separate from the originals so nothing is
+        // overwritten and the originals stay available for grading.
+        $table = new xmldb_table('aiproofreader_submission');
+
+        $field = new xmldb_field('initialtextredacted', XMLDB_TYPE_TEXT, null, null, false, null, null, 'initialtext');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field(
+            'initialtextredactedat',
+            XMLDB_TYPE_INTEGER,
+            '10',
+            null,
+            false,
+            null,
+            null,
+            'initialtextredacted'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field(
+            'initialtextpiicount',
+            XMLDB_TYPE_INTEGER,
+            '10',
+            null,
+            false,
+            null,
+            null,
+            'initialtextredactedat'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('finaltextredacted', XMLDB_TYPE_TEXT, null, null, false, null, null, 'finaltext');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field(
+            'finaltextredactedat',
+            XMLDB_TYPE_INTEGER,
+            '10',
+            null,
+            false,
+            null,
+            null,
+            'finaltextredacted'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field(
+            'finaltextpiicount',
+            XMLDB_TYPE_INTEGER,
+            '10',
+            null,
+            false,
+            null,
+            null,
+            'finaltextredactedat'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026091000, 'aiproofreader');
+    }
+
     return true;
 }
