@@ -58,7 +58,7 @@ Final version:
 {$a->final}';
 $string['aiprompt_feedback'] = '{$a->defaultinstructions}
 
-The student is in grade {$a->gradelevel}, target reading level approximately {$a->lexile}L. Calibrate vocabulary, sentence complexity, and explanations to this level.
+The student is in grade {$a->gradelevel}. Your feedback must not exceed a {$a->lexile}L reading level - treat this as a ceiling, not a target to approach. When in doubt, simplify further rather than less. Use short sentences, common everyday words, and one idea per sentence. If you must use a term the student may not know, define it in plain language right after using it.
 
 Assignment instructions: {$a->activityinstructions}
 
@@ -116,7 +116,11 @@ Review the writing for:
 * Missing or repeated words
 * Other mechanical writing errors
 
-Focus on errors that are important or occur repeatedly. When helpful, show the student a specific example from their writing and explain how to correct it.
+Focus on errors that are important or occur repeatedly.
+
+For misspellings and capitalization errors: list every instance you find. Quote the misspelled or miscapitalized word directly from their writing and state the correct spelling or capitalization.
+
+For other issues (grammar, punctuation, sentence structure, word usage, missing or repeated words): quote the specific example from their writing and explain what is wrong and why, referencing the applicable rule - but do not provide a rewritten or corrected version of the sentence or phrase. The student must apply the fix themselves.
 
 Clearly distinguish between an actual error and an optional suggestion for improving the writing.
 
@@ -159,7 +163,7 @@ IMPORTANT FEEDBACK REMINDERS:
 * Do not rewrite large portions of the student\'s work.
 * Do not complete missing portions of the assignment for the student.
 * Do not introduce new ideas, facts, evidence, or arguments for the student.
-* Short examples of corrected grammar or sentence structure are allowed when they help teach the student how to fix an issue.
+* For misspellings and capitalization only, state the correct spelling/capitalization directly - list every instance. For grammar or sentence-structure issues, explain the problem and the rule involved, but do not write out a corrected sentence or phrase for the student to copy.
 * Keep the feedback practical and focused on changes the student can make themselves.
 * Your goal is to help the student produce a stronger final submission while learning how to improve their own writing.';
 $string['defaultaiinstructions_desc'] = 'The base instructions sent to the AI for every AI Proofreader activity on this site, describing the proofreading philosophy, what to review, and the exact response format. This is combined with each activity\'s own instructions and any additional AI instructions the teacher adds. If you change the two section header phrases (GRAMMAR AND SPELLING / ASSIGNMENT SPECIFICS), update them consistently - the plugin parses the AI response by looking for those exact phrases.';

@@ -172,7 +172,7 @@ class submission_manager {
         $cm = get_coursemodule_from_instance('aiproofreader', $aiproofreader->id, $aiproofreader->course, false, MUST_EXIST);
         $context = \context_module::instance($cm->id);
 
-        $lexile = aiproofreader_get_lexile_for_grade((int)$aiproofreader->gradelevel);
+        $lexile = aiproofreader_get_lexile_one_level_below((int)$aiproofreader->gradelevel);
 
         $defaultinstructions = get_config('aiproofreader', 'defaultaiinstructions');
         if ($defaultinstructions === false || trim((string)$defaultinstructions) === '') {

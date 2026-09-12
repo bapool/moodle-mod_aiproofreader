@@ -88,6 +88,28 @@ function aiproofreader_get_lexile_for_grade($grade) {
 }
 
 /**
+ * Looks up the typical lexile measure for one grade level below the given
+ * grade, so AI feedback can target a slightly easier reading level than the
+ * student's own grade. Clamped at the lowest grade in the map (feedback for
+ * students already at the lowest tracked grade uses that grade's own value,
+ * since there is no lower level to step down to).
+ *
+ * @param int $grade
+ * @return int|null
+ */
+function aiproofreader_get_lexile_one_level_below($grade) {
+    $map = aiproofreader_gradelexile_map();
+    $grade = (int) $grade;
+
+    if (isset($map[$grade - 1])) {
+        return $map[$grade - 1];
+    }
+
+    // Already at (or below) the lowest grade tracked - use its own value.
+    return isset($map[$grade]) ? $map[$grade] : null;
+}
+
+/**
  * Ordered list of student survey question keys.
  *
  * @return string[]
