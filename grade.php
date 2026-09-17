@@ -63,7 +63,10 @@ $PAGE->requires->js_call_amd('mod_aiproofreader/tts', 'init');
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
-$mform = new \mod_aiproofreader\form\grade_form($PAGE->url, ['aiproofreader' => $aiproofreader]);
+$mform = new \mod_aiproofreader\form\grade_form(
+    $PAGE->url,
+    ['aiproofreader' => $aiproofreader, 'cmid' => $cm->id, 'userid' => $userid]
+);
 
 if ($mform->is_cancelled()) {
     redirect($viewurl);

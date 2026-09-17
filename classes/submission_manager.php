@@ -397,7 +397,11 @@ class submission_manager {
     }
 
     /**
-     * Saves the student's survey answers for a submission.
+     * Saves the student's survey answers for a submission - inserting a new
+     * row the first time, or updating the existing one on a later
+     * resubmission (e.g. after a teacher returns the submission to draft),
+     * since the student may have genuinely changed their answers along with
+     * their final version.
      *
      * @param \stdClass $submission
      * @param array $data
@@ -409,21 +413,26 @@ class submission_manager {
             return;
         }
 
-        if ($DB->record_exists('aiproofreader_studentsurvey', ['submissionid' => $submission->id])) {
-            return;
+        $survey = $DB->get_record('aiproofreader_studentsurvey', ['submissionid' => $submission->id]);
+        $isnewsurvey = empty($survey);
+        if (!$survey) {
+            $survey = new \stdClass();
+            $survey->submissionid = $submission->id;
+            $survey->timecreated = time();
         }
 
-        $survey = new \stdClass();
-        $survey->submissionid = $submission->id;
         $survey->q1overallfeedback = self::survey_value('student', 'q1overallfeedback', $data);
         $survey->q2specificfeedback = self::survey_value('student', 'q2specificfeedback', $data);
         $survey->q3usedfeedback = self::survey_value('student', 'q3usedfeedback', $data);
         $survey->q4categoryhelped = self::survey_value('student', 'q4categoryhelped', $data);
         $survey->q5confidence = self::survey_value('student', 'q5confidence', $data);
         $survey->freetext = aiproofreader_question_enabled('student', 'freetext') ? ($data['freetext'] ?? '') : null;
-        $survey->timecreated = time();
 
-        $DB->insert_record('aiproofreader_studentsurvey', $survey);
+        if ($isnewsurvey) {
+            $DB->insert_record('aiproofreader_studentsurvey', $survey);
+        } else {
+            $DB->update_record('aiproofreader_studentsurvey', $survey);
+        }
     }
 
     /**
@@ -610,6 +619,94 @@ class submission_manager {
         aiproofreader_update_grades($aiproofreader, $submission->userid);
 
         return $DB->get_record('aiproofreader_submission', ['id' => $submission->id]);
+    }
+
+    /**
+     * Returns a submitted (or already-graded) submission to the
+     * feedback-ready stage so the student can revise and resubmit their
+     * final version - they see their existing AI feedback again rather than
+     * starting over from an empty draft. If the submission was already
+     * graded, the existing grade and teacher survey are cleared (they're
+     * no longer accurate once the final version is going to change) and
+     * the gradebook entry for this student is nulled out. The student's
+     * own survey answers are deliberately left in place so they can be
+     * shown pre-filled if the student resubmits.
+     *
+     * @param \stdClass $aiproofreader
+     * @param \stdClass $submission
+     * @return \stdClass The updated submission record
+     */
+    public static function return_to_draft($aiproofreader, $submission) {
+        global $DB;
+
+        if ($submission->status === 'graded') {
+            $DB->delete_records('aiproofreader_grade', ['submissionid' => $submission->id]);
+            $DB->delete_records('aiproofreader_teachersurvey', ['submissionid' => $submission->id]);
+
+            // No aiproofreader_grade row now exists for this student, so this
+            // nulls their gradebook entry rather than leaving a stale grade.
+            aiproofreader_update_grades($aiproofreader, $submission->userid);
+        }
+
+        $submission->status = 'feedbackready';
+        $submission->timemodified = time();
+        $DB->update_record('aiproofreader_submission', $submission);
+
+        self::notify_returned_to_draft($aiproofreader, $submission);
+
+        return $DB->get_record('aiproofreader_submission', ['id' => $submission->id]);
+    }
+
+    /**
+     * Lets the student know their submission was returned to draft, via
+     * Moodle's own messaging system (a bell-icon notification and, per the
+     * student's own notification preferences, an email) rather than a raw
+     * email - this way it respects however the student has that message
+     * type configured, and shows up in their notification history either
+     * way. Failure here is logged but never blocks the return-to-draft
+     * action itself.
+     *
+     * @param \stdClass $aiproofreader
+     * @param \stdClass $submission
+     */
+    protected static function notify_returned_to_draft($aiproofreader, $submission) {
+        global $USER;
+
+        try {
+            $cm = get_coursemodule_from_instance(
+                'aiproofreader',
+                $aiproofreader->id,
+                $aiproofreader->course,
+                false,
+                MUST_EXIST
+            );
+            $course = get_course($aiproofreader->course);
+            $url = new \moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]);
+
+            $a = (object) [
+                'activityname' => format_string($aiproofreader->name),
+                'coursename' => format_string($course->fullname),
+                'url' => $url->out(false),
+            ];
+
+            $message = new \core\message\message();
+            $message->component = 'mod_aiproofreader';
+            $message->name = 'returnedtodraft';
+            $message->userfrom = $USER;
+            $message->userto = $submission->userid;
+            $message->subject = get_string('returnedtodraftmessage_subject', 'aiproofreader', $a);
+            $message->fullmessage = get_string('returnedtodraftmessage_body', 'aiproofreader', $a);
+            $message->fullmessageformat = FORMAT_PLAIN;
+            $message->fullmessagehtml = '';
+            $message->smallmessage = get_string('returnedtodraftmessage_subject', 'aiproofreader', $a);
+            $message->notification = 1;
+            $message->contexturl = $a->url;
+            $message->contexturlname = $a->activityname;
+
+            message_send($message);
+        } catch (\Throwable $e) {
+            debugging('mod_aiproofreader: failed to notify student of return to draft: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**

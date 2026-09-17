@@ -12,6 +12,7 @@ Built for National Trail Local Schools as part of the K-12 AI Infrastructure Pro
 4. If surveys are turned on (see below), the student completes a short survey, then submits a final version. If surveys are off, the student just submits a final version.
 5. The AI compares the draft, the feedback, and the final version, and generates a 1-5 score for the teacher on how well the student incorporated the feedback - weighted so it doesn't penalize students for skipping feedback that was optional depth versus something that was actually required.
 6. The teacher reviews everything (draft, feedback, final, AI comparison, and the student's survey answers if surveys are on), completes a short survey of their own if surveys are on, and enters a grade.
+7. If a final version is unacceptable, or was submitted for grading by mistake, the teacher can click "Return to draft" (on the overview table or the grading page) to send it back for revision. The student is notified via Moodle's messaging system (bell icon plus email, per their own notification preferences), sees their existing AI feedback again, and resubmits a final version, with their previous survey answers pre-filled (and editable - changing them updates their existing answers rather than adding a second set). Returning an already-graded submission clears the grade and removes it from the gradebook until it's regraded.
 
 ## Requirements
 

@@ -121,6 +121,7 @@ class provider implements
 
         $collection->add_subsystem_link('core_files', [], 'privacy:metadata:core_files');
         $collection->add_subsystem_link('core_ai', [], 'privacy:metadata:core_ai');
+        $collection->add_subsystem_link('core_message', [], 'privacy:metadata:core_message');
 
         // When a student submits via a Google Drive link, the plugin fetches
         // the document's plain text from Google's export endpoint so it can

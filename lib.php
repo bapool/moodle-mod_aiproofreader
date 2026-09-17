@@ -417,6 +417,25 @@ function aiproofreader_render_submission_file_link($context, $itemid, $filearea)
 }
 
 /**
+ * Renders a "Return to draft" link for the grader, styled as a small button
+ * so it reads as a distinct action rather than blending into the status
+ * text next to it. Shared by the teacher overview table (view.php) and the
+ * grading page (grade_form.php) so both look and behave the same way.
+ *
+ * @param int $cmid
+ * @param int $userid
+ * @return string HTML link
+ */
+function aiproofreader_render_return_to_draft_link($cmid, $userid) {
+    $url = new moodle_url('/mod/aiproofreader/returntodraft.php', ['id' => $cmid, 'userid' => $userid]);
+    return html_writer::link(
+        $url,
+        get_string('returntodraft', 'aiproofreader'),
+        ['class' => 'btn btn-secondary btn-sm aiproofreader-returntodraft']
+    );
+}
+
+/**
  * Renders a read-only summary of the student's survey answers, for the grader.
  * Returns just the content (no heading/wrapper) so callers can wrap it in
  * their own collapsible section.

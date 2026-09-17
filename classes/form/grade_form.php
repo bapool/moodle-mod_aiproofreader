@@ -58,6 +58,17 @@ class grade_form extends \moodleform {
         $mform->setType('grade', PARAM_INT);
         $mform->addRule('grade', null, 'required', null, 'client');
 
+        $cmid = $this->_customdata['cmid'] ?? 0;
+        $userid = $this->_customdata['userid'] ?? 0;
+        if ($cmid && $userid) {
+            $mform->addElement(
+                'static',
+                'returntodraftlink',
+                '',
+                aiproofreader_render_return_to_draft_link($cmid, $userid)
+            );
+        }
+
         $mform->addElement(
             'editor',
             'instructorcomments_editor',

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for mod_aiproofreader.
+ * Message provider definitions for mod_aiproofreader.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
@@ -24,8 +24,15 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026091705;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.5.3';
+$messageproviders = [
+    // Sent to a student when a teacher returns their submission to draft
+    // status for revision. On by default via both popup and email, but
+    // students can adjust either channel in their own notification
+    // preferences (Preferences -> Notification preferences).
+    'returnedtodraft' => [
+        'defaults' => [
+            'popup' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+            'email' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+        ],
+    ],
+];

@@ -2,6 +2,18 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.5.3 (2026091705)
+### Added
+- Teachers can now return a submitted (or already-graded) submission to draft status: a "Return to draft" link appears next to the status on the teacher overview table and next to the grade field on the grading page, both requiring confirmation (`mod/aiproofreader:grade` capability). The student is sent back to the feedback-ready stage - they see their existing AI feedback again rather than starting over from an empty draft - and their previous survey answers are shown pre-filled if they already completed the survey once, editable and saved as an update to their existing survey row (not a second row) if they change anything when they resubmit. Returning an already-graded submission clears the existing grade and teacher survey, and nulls the entry in the gradebook, since both are about to be redone.
+
+### Changed
+- The student survey is no longer write-once: `save_student_survey()` now updates the existing row on a later final resubmission instead of silently skipping it, since a student revising their final version after a "Return to draft" may genuinely want to change their survey answers too.
+- The "Return to draft" link is now styled as a small button (`btn btn-secondary btn-sm`) on the teacher overview table, inline on the same row as the status with a small left margin, so it doesn't add a second line per row for classes with many students.
+- Returning a submission to draft now notifies the student via Moodle's own messaging system (bell-icon notification, plus email per the student's own notification preferences under Preferences -> Notification preferences) - a new "Notification when a submission is returned to draft for revision" message type, on by default. New `db/messages.php` registers the message type; privacy metadata updated to note the `core_message` subsystem use.
+
+### Fixed
+- `db/messages.php` used `MESSAGE_DEFAULT_LOGGEDIN`/`MESSAGE_DEFAULT_LOGGEDOFF`, deprecated since Moodle 4.0 and removed entirely in Moodle 4.5, which aborted the database upgrade with `Undefined constant "MESSAGE_DEFAULT_LOGGEDIN"`. Replaced with `MESSAGE_DEFAULT_ENABLED`, the current pattern.
+
 ## v0.5.1 (2026091101)
 ### Fixed
 - Moodle plugin review flagged (HIGH, approval blocker) that the Google Drive text-fetch call in `submission_manager.php` (a direct `curl` request to Google's document export endpoint) wasn't declared in the Privacy provider's metadata. Added `add_external_location_link('google_drive', ...)` documenting this: only the document URL the student provided is sent to Google - no Moodle user identifier (name, email, user ID) is included in that request.

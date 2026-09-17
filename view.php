@@ -129,6 +129,32 @@ if (!$isgrader) {
             );
             redirect(new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]));
         }
+
+        // If a teacher returned this submission to draft after the student
+        // already completed the survey once, show their previous answers
+        // pre-filled - the student can leave them as-is or change them;
+        // either way submit_final() -> save_student_survey() below updates
+        // the existing survey row rather than creating a second one.
+        if (!$finalform->is_submitted() && aiproofreader_survey_enabled()) {
+            $existingsurvey = $DB->get_record('aiproofreader_studentsurvey', ['submissionid' => $submission->id]);
+            if ($existingsurvey) {
+                $defaults = [];
+                foreach (['q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback', 'q5confidence'] as $qkey) {
+                    if ($existingsurvey->$qkey !== null) {
+                        $defaults[$qkey] = $existingsurvey->$qkey;
+                    }
+                }
+                if ($existingsurvey->q4categoryhelped !== null) {
+                    $defaults['q4categoryhelped'] = $existingsurvey->q4categoryhelped;
+                }
+                if ($existingsurvey->freetext !== null) {
+                    $defaults['freetext'] = $existingsurvey->freetext;
+                }
+                if (!empty($defaults)) {
+                    $finalform->set_data($defaults);
+                }
+            }
+        }
     }
 }
 
@@ -190,6 +216,8 @@ if ($isgrader) {
         echo html_writer::end_tag('form');
     }
 
+    $cangrade = has_capability('mod/aiproofreader:grade', $context);
+
     $students = get_enrolled_users($context, 'mod/aiproofreader:submit', 0, 'u.*', null, 0, 0, true);
 
     if (!empty($groupid)) {
@@ -214,6 +242,14 @@ if ($isgrader) {
         if (in_array($status, ['finalsubmitted', 'graded'])) {
             $gradeurl = new moodle_url('/mod/aiproofreader/grade.php', ['id' => $cm->id, 'userid' => $student->id]);
             $statustext = html_writer::link($gradeurl, $statustext);
+
+            if ($cangrade) {
+                $statustext .= ' ' . html_writer::tag(
+                    'span',
+                    aiproofreader_render_return_to_draft_link($cm->id, $student->id),
+                    ['class' => 'ml-2']
+                );
+            }
         }
 
         $table->data[] = [fullname($student), $statustext];

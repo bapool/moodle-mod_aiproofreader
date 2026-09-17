@@ -78,6 +78,8 @@ $string['availability'] = 'Availability';
 $string['cannotopendocx'] = 'Could not open the Word document.';
 $string['cannotreadfile'] = 'Could not read the uploaded file.';
 $string['completionsubmit'] = 'Student must make a final submission to complete this activity';
+$string['confirmreturntodraft'] = 'Return {$a}\'s submission to draft status? They will see their existing AI feedback again and will be able to revise and resubmit their final version. If they already completed the survey, their previous answers will be shown pre-filled when they resubmit.';
+$string['confirmreturntodraft_gradewarning'] = 'This submission has already been graded. Returning it to draft will clear the existing grade and remove it from the gradebook.';
 $string['convertfromassign'] = 'Convert to AI Proofreader';
 $string['cutoffdate'] = 'Cut-off date';
 $string['cutoffdate_help'] = 'If set, students will not be able to submit after this date without an extension.';
@@ -217,6 +219,7 @@ $string['instructorcomments'] = 'Instructor comments';
 $string['invaliddocx'] = 'This Word document could not be read.';
 $string['loadimportassign'] = 'Load';
 $string['maximumgrade'] = 'Maximum points';
+$string['messageprovider:returnedtodraft'] = 'Notification when a submission is returned to draft for revision';
 $string['missingidandcmid'] = 'You must specify a course_module ID or an instance ID';
 $string['modulename'] = 'AI Proofreader';
 $string['modulename_help'] = 'The AI Proofreader activity lets students submit a draft, receive AI-generated feedback on grammar/spelling and assignment specifics, then submit a revised final version for teacher grading.';
@@ -280,6 +283,7 @@ $string['privacy:metadata:aiproofreader_teachersurvey:q6aiaccuracy'] = 'Whether 
 $string['privacy:metadata:aiproofreader_teachersurvey:timecreated'] = 'When the teacher survey was submitted.';
 $string['privacy:metadata:core_ai'] = 'AI Proofreader sends the student\'s draft and final text to the site\'s configured AI provider to generate feedback and a comparison.';
 $string['privacy:metadata:core_files'] = 'AI Proofreader stores uploaded Word document submissions using the Moodle file API.';
+$string['privacy:metadata:core_message'] = 'When a teacher returns a submission to draft status, AI Proofreader sends the student a Moodle notification (and, per the student\'s own notification preferences, an email) letting them know, with a link back to the activity.';
 $string['privacy:metadata:google_drive'] = 'When a student submits their draft or final work as a Google Drive link, AI Proofreader sends the document\'s URL to Google Docs\' export endpoint to retrieve the document\'s plain text content. No Moodle user identifier (name, email, or user ID) is sent to Google as part of this request - only the document URL the student provided.';
 $string['privacy:metadata:google_drive:docurl'] = 'The URL of the Google Doc the student submitted, sent so its content can be retrieved.';
 $string['q1overallfeedback'] = 'Was the overall feedback useful?';
@@ -293,6 +297,13 @@ $string['q5confidence'] = 'How confident are you in your final version compared 
 $string['readaloud'] = 'Read aloud';
 $string['resetsubmissions'] = 'Delete all AI Proofreader submissions, surveys, and grades';
 $string['retrybutton'] = 'Retry generating feedback';
+$string['returnedtodraft'] = '{$a}\'s submission has been returned to draft status.';
+$string['returnedtodraftmessage_body'] = 'Your final submission for "{$a->activityname}" in {$a->coursename} has been returned to draft status by your teacher, so you can revise it before it\'s graded.
+
+Please review the feedback and submit a revised final version when you\'re ready:
+{$a->url}';
+$string['returnedtodraftmessage_subject'] = '"{$a->activityname}" was returned to draft';
+$string['returntodraft'] = 'Return to draft';
 $string['savegrade'] = 'Save grade';
 $string['scalelabelhigh'] = '<span style="vertical-align: baseline;">&nbsp;&nbsp;High</span>';
 $string['scalelabellow'] = '<span style="vertical-align: baseline;">Low&nbsp;&nbsp;</span>';
