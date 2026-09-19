@@ -96,17 +96,33 @@ if ($data = $mform->get_data()) {
     redirect($viewurl, get_string('gradesaved', 'aiproofreader'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
-// Preload an existing grade/comments if this student is being re-graded.
+// Preload an existing grade/comments/survey if this student is being re-graded.
 if (!$mform->is_submitted()) {
     $existinggrade = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]);
     if ($existinggrade) {
-        $mform->set_data([
+        $preloaddata = [
             'grade' => $existinggrade->grade,
             'instructorcomments_editor' => [
                 'text' => $existinggrade->instructorcomments,
                 'format' => $existinggrade->instructorcommentsformat,
             ],
-        ]);
+        ];
+
+        $existingsurvey = $DB->get_record('aiproofreader_teachersurvey', ['submissionid' => $submission->id]);
+        if ($existingsurvey) {
+            $surveyfields = [
+                'q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback',
+                'q4feedbackfollowed', 'q5aiscaffold', 'q6aiaccuracy',
+            ];
+            foreach ($surveyfields as $qkey) {
+                if ($existingsurvey->$qkey !== null) {
+                    $preloaddata[$qkey] = $existingsurvey->$qkey;
+                }
+            }
+            $preloaddata['freetext'] = $existingsurvey->freetext;
+        }
+
+        $mform->set_data($preloaddata);
     }
 }
 

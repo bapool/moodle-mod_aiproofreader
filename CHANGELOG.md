@@ -2,6 +2,10 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.5.4 (2026091900)
+### Fixed
+- Grading page didn't reload previously saved teacher-survey answers when a teacher reopened an already-graded submission - the survey radios and free-text box came back blank even though the answers were still stored, forcing the teacher to re-answer every question just to change the grade or comments. `grade.php` now also preloads the existing `aiproofreader_teachersurvey` row into the form alongside the grade and instructor comments.
+
 ## v0.5.3 (2026091705)
 ### Added
 - Teachers can now return a submitted (or already-graded) submission to draft status: a "Return to draft" link appears next to the status on the teacher overview table and next to the grade field on the grading page, both requiring confirmation (`mod/aiproofreader:grade` capability). The student is sent back to the feedback-ready stage - they see their existing AI feedback again rather than starting over from an empty draft - and their previous survey answers are shown pre-filled if they already completed the survey once, editable and saved as an update to their existing survey row (not a second row) if they change anything when they resubmit. Returning an already-graded submission clears the existing grade and teacher survey, and nulls the entry in the gradebook, since both are about to be redone.
