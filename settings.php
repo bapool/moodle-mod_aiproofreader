@@ -92,4 +92,84 @@ if ($ADMIN->fulltree) {
         200,
         PARAM_INT
     ));
+
+    $settings->add(new admin_setting_heading(
+        'aiproofreader/gradelevelheading',
+        get_string('settings_gradelevelheading', 'aiproofreader'),
+        get_string('settings_gradelevelheading_desc', 'aiproofreader')
+    ));
+
+    $settings->add(new admin_setting_configselect(
+        'aiproofreader/gradelevelsource',
+        get_string('gradelevelsource', 'aiproofreader'),
+        get_string('gradelevelsource_desc', 'aiproofreader'),
+        'none',
+        [
+            'none' => get_string('gradelevelsource_none', 'aiproofreader'),
+            'username' => get_string('gradelevelsource_username', 'aiproofreader'),
+            'profilefield' => get_string('gradelevelsource_profilefield', 'aiproofreader'),
+        ]
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'aiproofreader/gradelevelprofilefield',
+        get_string('gradelevelprofilefield', 'aiproofreader'),
+        get_string('gradelevelprofilefield_desc', 'aiproofreader'),
+        '',
+        PARAM_ALPHANUMEXT
+    ));
+
+    $settings->add(new admin_setting_heading(
+        'aiproofreader/visionheading',
+        get_string('settings_visionheading', 'aiproofreader'),
+        get_string('settings_visionheading_desc', 'aiproofreader')
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'aiproofreader/visionenabled',
+        get_string('visionenabled', 'aiproofreader'),
+        get_string('visionenabled_desc', 'aiproofreader'),
+        0
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'aiproofreader/visionendpoint',
+        get_string('visionendpoint', 'aiproofreader'),
+        get_string('visionendpoint_desc', 'aiproofreader'),
+        '',
+        PARAM_URL,
+        60
+    ));
+
+    $settings->add(new admin_setting_configpasswordunmask(
+        'aiproofreader/visionapikey',
+        get_string('visionapikey', 'aiproofreader'),
+        get_string('visionapikey_desc', 'aiproofreader'),
+        ''
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'aiproofreader/visionmodel',
+        get_string('visionmodel', 'aiproofreader'),
+        get_string('visionmodel_desc', 'aiproofreader'),
+        '',
+        PARAM_RAW_TRIMMED,
+        60
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'aiproofreader/visionmaximages',
+        get_string('visionmaximages', 'aiproofreader'),
+        get_string('visionmaximages_desc', 'aiproofreader'),
+        4,
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'aiproofreader/visiontimeout',
+        get_string('visiontimeout', 'aiproofreader'),
+        get_string('visiontimeout_desc', 'aiproofreader'),
+        180,
+        PARAM_INT
+    ));
 }

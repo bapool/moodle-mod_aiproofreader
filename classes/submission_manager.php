@@ -89,6 +89,7 @@ class submission_manager {
      * @param string $gdrivelink
      * @param int $draftfileitemid Draft area item id from the filepicker, if type is file
      * @param int $gdrivefileitemid Draft area item id from the Google Doc filepicker, if type is gdrive
+     * @param string $html The editor HTML, if type is text (keeps the student's formatting)
      * @return \stdClass The updated submission record
      */
     public static function save_draft(
@@ -99,16 +100,19 @@ class submission_manager {
         $text,
         $gdrivelink,
         $draftfileitemid,
-        $gdrivefileitemid
+        $gdrivefileitemid,
+        $html = ''
     ) {
         global $DB;
 
         $submission->initialsubmissiontype = $type;
         $submission->initialtext = null;
+        $submission->initialtexthtml = null;
         $submission->initialgdrivelink = null;
 
         if ($type === 'text') {
             $submission->initialtext = $text;
+            $submission->initialtexthtml = trim((string) $html) !== '' ? clean_text($html, FORMAT_HTML) : null;
         } else if ($type === 'gdrive') {
             if (self::draft_area_has_files($gdrivefileitemid)) {
                 file_save_draft_area_files(
@@ -120,9 +124,11 @@ class submission_manager {
                     ['subdirs' => 0, 'maxfiles' => 1]
                 );
                 $submission->initialtext = self::extract_text_from_stored_file($context, $submission->id, 'draftgdrivefile');
+                $submission->initialtexthtml = self::extract_html_from_stored_file($context, $submission->id, 'draftgdrivefile');
             } else {
                 $submission->initialgdrivelink = $gdrivelink;
                 $submission->initialtext = self::fetch_gdrive_text($gdrivelink);
+                $submission->initialtexthtml = self::fetch_gdrive_html($gdrivelink);
             }
         } else if ($type === 'file') {
             file_save_draft_area_files(
@@ -134,6 +140,7 @@ class submission_manager {
                 ['subdirs' => 0, 'maxfiles' => 1]
             );
             $submission->initialtext = self::extract_text_from_stored_file($context, $submission->id, 'draftsubmission');
+            $submission->initialtexthtml = self::extract_html_from_stored_file($context, $submission->id, 'draftsubmission');
         }
 
         $submission->initialtimesubmitted = time();
@@ -179,46 +186,46 @@ class submission_manager {
             $defaultinstructions = get_string('defaultaiinstructions_default', 'aiproofreader');
         }
 
+        // Drafts typed into the editor can't be submitted below the minimum
+        // length, but Google Drive links and uploads are checked here instead
+        // so the student is told in their feedback.
+        $belowminimum = !aiproofreader_meets_minlength($aiproofreader, $submission->initialtext);
+        $minimumnote = $belowminimum
+            ? get_string('aiprompt_belowminimum', 'aiproofreader', aiproofreader_minlength_description($aiproofreader))
+            : '';
+
         $prompt = get_string('aiprompt_feedback', 'aiproofreader', (object) [
             'defaultinstructions' => $defaultinstructions,
             'gradelevel' => $aiproofreader->gradelevel,
             'lexile' => $lexile,
             'activityinstructions' => !empty($aiproofreader->intro) ? strip_tags($aiproofreader->intro) : '',
             'aiinstructions' => !empty($aiproofreader->aiinstructions) ? strip_tags($aiproofreader->aiinstructions) : '',
+            'minimumnote' => $minimumnote,
             'studenttext' => $submission->initialtext,
         ]);
 
         $errormessage = '';
 
-        try {
-            $action = new \core_ai\aiactions\generate_text(
-                contextid: $context->id,
-                userid: $submission->userid,
-                prompttext: $prompt
-            );
-            $manager = \core\di::get(\core_ai\manager::class);
-            $response = $manager->process_action($action);
+        $result = ai_client::generate($aiproofreader, $context, (int) $submission->userid, $prompt);
 
-            if ($response->get_success()) {
-                $raw = $response->get_response_data()['generatedcontent'] ?? '';
-                [$grammar, $assignment] = self::parse_feedback_sections($raw);
+        if ($result['success']) {
+            [$grammar, $assignment] = self::parse_feedback_sections($result['content']);
 
-                $submission->feedbackgrammar = $grammar;
-                $submission->feedbackassignment = $assignment;
-                $submission->feedbacktimecreated = time();
-                $submission->feedbackaimodel = aiproofreader_build_ai_model_label($response);
-                $submission->status = 'feedbackready';
-            } else {
-                // The AI subsystem responded but declined/failed the request - capture why.
-                $errormessage = $response->get_errormessage();
-                if (empty($errormessage)) {
-                    $errormessage = get_string('aiunknownerror', 'aiproofreader');
-                }
-                debugging('mod_aiproofreader: AI feedback generation unsuccessful: ' . $errormessage, DEBUG_DEVELOPER);
+            if ($belowminimum) {
+                // Stated plainly by the plugin itself, so it's there even if
+                // the AI doesn't mention it.
+                $minimum = aiproofreader_minlength_description($aiproofreader);
+                $assignment = get_string('belowminimumfeedback', 'aiproofreader', $minimum) . "\n\n" . $assignment;
             }
-        } catch (\Throwable $e) {
-            $errormessage = $e->getMessage();
-            debugging('mod_aiproofreader: AI feedback generation failed: ' . $errormessage, DEBUG_DEVELOPER);
+
+            $submission->feedbackgrammar = $grammar;
+            $submission->feedbackassignment = $assignment;
+            $submission->feedbacktimecreated = time();
+            $submission->feedbackaimodel = $result['modellabel'];
+            $submission->status = 'feedbackready';
+        } else {
+            $errormessage = $result['error'] !== '' ? $result['error'] : get_string('aiunknownerror', 'aiproofreader');
+            debugging('mod_aiproofreader: AI feedback generation unsuccessful: ' . $errormessage, DEBUG_DEVELOPER);
         }
 
         $submission->timemodified = time();
@@ -287,6 +294,7 @@ class submission_manager {
      * @param int $finalfileitemid
      * @param int $gdrivefileitemid Draft area item id from the Google Doc filepicker, if type is gdrive
      * @param array $surveydata
+     * @param string $html The editor HTML, if type is text (keeps the student's formatting)
      * @return \stdClass The updated submission record
      */
     public static function submit_final(
@@ -298,16 +306,19 @@ class submission_manager {
         $gdrivelink,
         $finalfileitemid,
         $gdrivefileitemid,
-        array $surveydata
+        array $surveydata,
+        $html = ''
     ) {
         global $DB;
 
         $submission->finalsubmissiontype = $type;
         $submission->finaltext = null;
+        $submission->finaltexthtml = null;
         $submission->finalgdrivelink = null;
 
         if ($type === 'text') {
             $submission->finaltext = $text;
+            $submission->finaltexthtml = trim((string) $html) !== '' ? clean_text($html, FORMAT_HTML) : null;
         } else if ($type === 'gdrive') {
             if (self::draft_area_has_files($gdrivefileitemid)) {
                 file_save_draft_area_files(
@@ -319,9 +330,11 @@ class submission_manager {
                     ['subdirs' => 0, 'maxfiles' => 1]
                 );
                 $submission->finaltext = self::extract_text_from_stored_file($context, $submission->id, 'finalgdrivefile');
+                $submission->finaltexthtml = self::extract_html_from_stored_file($context, $submission->id, 'finalgdrivefile');
             } else {
                 $submission->finalgdrivelink = $gdrivelink;
                 $submission->finaltext = self::fetch_gdrive_text($gdrivelink);
+                $submission->finaltexthtml = self::fetch_gdrive_html($gdrivelink);
             }
         } else if ($type === 'file') {
             file_save_draft_area_files(
@@ -333,7 +346,14 @@ class submission_manager {
                 ['subdirs' => 0, 'maxfiles' => 1]
             );
             $submission->finaltext = self::extract_text_from_stored_file($context, $submission->id, 'finalsubmission');
+            $submission->finaltexthtml = self::extract_html_from_stored_file($context, $submission->id, 'finalsubmission');
         }
+
+        // Record whether the final version actually differs from the draft,
+        // for the teacher. This is the only change check possible for
+        // Google Drive links and uploads, whose content the form can't
+        // compare before accepting the submission.
+        $submission->finalchanged = self::detect_final_changed($submission);
 
         $submission->finaltimesubmitted = time();
         $submission->status = 'finalsubmitted';
@@ -379,6 +399,7 @@ class submission_manager {
             && !empty($submission->initialgdrivelink)
         ) {
             $submission->initialtext = null;
+            $submission->initialtexthtml = null;
             $changed = true;
         }
         if (
@@ -387,6 +408,7 @@ class submission_manager {
             && !empty($submission->finalgdrivelink)
         ) {
             $submission->finaltext = null;
+            $submission->finaltexthtml = null;
             $changed = true;
         }
 
@@ -475,6 +497,14 @@ class submission_manager {
         $cm = get_coursemodule_from_instance('aiproofreader', $aiproofreader->id, $aiproofreader->course, false, MUST_EXIST);
         $context = \context_module::instance($cm->id);
 
+        if (!isset($submission->finalchanged) || $submission->finalchanged === null) {
+            $submission->finalchanged = self::detect_final_changed($submission);
+        }
+        $changecheck = get_string(
+            $submission->finalchanged ? 'aiprompt_changecheck_changed' : 'aiprompt_changecheck_unchanged',
+            'aiproofreader'
+        );
+
         $prompt = get_string('aiprompt_comparison', 'aiproofreader', (object) [
             'gradelevel' => $aiproofreader->gradelevel,
             'activityinstructions' => !empty($aiproofreader->intro) ? strip_tags($aiproofreader->intro) : '',
@@ -482,38 +512,24 @@ class submission_manager {
             'feedbackgrammar' => $submission->feedbackgrammar,
             'feedbackassignment' => $submission->feedbackassignment,
             'final' => $submission->finaltext,
+            'changecheck' => $changecheck,
         ]);
 
         $errormessage = '';
 
-        try {
-            $action = new \core_ai\aiactions\generate_text(
-                contextid: $context->id,
-                userid: $submission->userid,
-                prompttext: $prompt
-            );
-            $manager = \core\di::get(\core_ai\manager::class);
-            $response = $manager->process_action($action);
+        $result = ai_client::generate($aiproofreader, $context, (int) $submission->userid, $prompt);
 
-            if ($response->get_success()) {
-                $raw = $response->get_response_data()['generatedcontent'] ?? '';
-                [$score, $summary] = self::parse_comparison_response($raw);
+        if ($result['success']) {
+            [$score, $summary] = self::parse_comparison_response($result['content']);
 
-                $submission->aifollowedscore = $score;
-                $submission->aicomparison = $summary;
-                $submission->aicomparisontimecreated = time();
-                $submission->comparisonaimodel = aiproofreader_build_ai_model_label($response);
-            } else {
-                $errormessage = $response->get_errormessage();
-                if (empty($errormessage)) {
-                    $errormessage = get_string('aiunknownerror', 'aiproofreader');
-                }
-                debugging('mod_aiproofreader: AI comparison generation unsuccessful: ' . $errormessage, DEBUG_DEVELOPER);
-            }
-        } catch (\Throwable $e) {
-            $errormessage = $e->getMessage();
+            $submission->aifollowedscore = $score;
+            $submission->aicomparison = $summary;
+            $submission->aicomparisontimecreated = time();
+            $submission->comparisonaimodel = $result['modellabel'];
+        } else {
             // Comparison is a nice-to-have for the grader; grading can proceed without it.
-            debugging('mod_aiproofreader: AI comparison generation failed: ' . $errormessage, DEBUG_DEVELOPER);
+            $errormessage = $result['error'] !== '' ? $result['error'] : get_string('aiunknownerror', 'aiproofreader');
+            debugging('mod_aiproofreader: AI comparison generation unsuccessful: ' . $errormessage, DEBUG_DEVELOPER);
         }
 
         $submission->timemodified = time();
@@ -771,6 +787,93 @@ class submission_manager {
 
         self::$gdrivetextcache[$url] = $result;
         return $result;
+    }
+
+    /**
+     * Whether the final version's text differs from the draft's, ignoring
+     * whitespace and capitalization.
+     *
+     * @param \stdClass $submission
+     * @return int|null 1 = changed, 0 = identical, null = can't tell (text missing)
+     */
+    public static function detect_final_changed($submission) {
+        if (empty($submission->initialtext) || empty($submission->finaltext)) {
+            return null;
+        }
+        return aiproofreader_normalize_text_for_comparison($submission->initialtext)
+            === aiproofreader_normalize_text_for_comparison($submission->finaltext) ? 0 : 1;
+    }
+
+    /**
+     * Downloads a link-shared Google Doc as .docx and converts it to HTML,
+     * so the teacher sees a snapshot of the student's formatting as it was
+     * when submitted (the live doc can keep changing afterwards).
+     *
+     * @param string $url
+     * @return string|null
+     */
+    public static function fetch_gdrive_html($url) {
+        global $CFG;
+        require_once($CFG->libdir . '/filelib.php');
+
+        if (!preg_match('#/document/d/([a-zA-Z0-9_-]+)#', (string) $url, $matches)) {
+            return null;
+        }
+
+        $exporturl = 'https://docs.google.com/document/d/' . $matches[1] . '/export?format=docx';
+        $tmp = tempnam(sys_get_temp_dir(), 'aiproofreader_');
+
+        try {
+            $curl = new \curl();
+            $curl->setopt([
+                'CURLOPT_TIMEOUT' => 20,
+                'CURLOPT_FOLLOWLOCATION' => true,
+                'CURLOPT_MAXREDIRS' => 5,
+            ]);
+            $content = $curl->get($exporturl);
+            $info = $curl->get_info();
+
+            if (empty($content) || (isset($info['http_code']) && (int) $info['http_code'] !== 200)) {
+                return null;
+            }
+
+            file_put_contents($tmp, $content);
+            return document_parser::extract_html($tmp, 'export.docx');
+        } catch (\Throwable $e) {
+            debugging('mod_aiproofreader: Google Doc formatted fetch failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return null;
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    /**
+     * Reads a stored submission file and converts it to formatted HTML.
+     *
+     * @param \context_module $context
+     * @param int $itemid The aiproofreader_submission id (file area itemid)
+     * @param string $filearea
+     * @return string|null
+     */
+    protected static function extract_html_from_stored_file(\context_module $context, $itemid, $filearea) {
+        $fs = get_file_storage();
+        $files = $fs->get_area_files($context->id, 'mod_aiproofreader', $filearea, $itemid, 'id', false);
+        $file = reset($files);
+
+        if (!$file) {
+            return null;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'aiproofreader_');
+        $file->copy_content_to($tmp);
+
+        try {
+            return document_parser::extract_html($tmp, $file->get_filename());
+        } catch (\Throwable $e) {
+            return null;
+        } finally {
+            @unlink($tmp);
+        }
     }
 
     /**

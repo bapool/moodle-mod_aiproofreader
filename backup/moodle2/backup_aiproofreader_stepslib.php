@@ -40,7 +40,7 @@ class backup_aiproofreader_activity_structure_step extends backup_activity_struc
         $aiproofreader = new backup_nested_element('aiproofreader', ['id'], [
             'name', 'intro', 'introformat',
             'allowsubmissionsfromdate', 'duedate', 'cutoffdate',
-            'gradelevel', 'aiinstructions', 'aiinstructionsformat',
+            'gradelevel', 'minlength', 'aiinstructions', 'aiinstructionsformat',
             'submtext', 'submfile', 'submgdrive',
             'grade', 'hidegrader', 'completionsubmit',
             'timecreated', 'timemodified']);
@@ -48,10 +48,10 @@ class backup_aiproofreader_activity_structure_step extends backup_activity_struc
         $submissions = new backup_nested_element('submissions');
         $submission = new backup_nested_element('submission', ['id'], [
             'userid', 'status',
-            'initialsubmissiontype', 'initialtext', 'initialgdrivelink', 'initialtimesubmitted',
+            'initialsubmissiontype', 'initialtext', 'initialtexthtml', 'initialgdrivelink', 'initialtimesubmitted',
             'feedbackgrammar', 'feedbackassignment', 'feedbacktimecreated',
-            'finalsubmissiontype', 'finaltext', 'finalgdrivelink', 'finaltimesubmitted',
-            'aicomparison', 'aicomparisontimecreated', 'aifollowedscore',
+            'finalsubmissiontype', 'finaltext', 'finaltexthtml', 'finalgdrivelink', 'finaltimesubmitted',
+            'aicomparison', 'aicomparisontimecreated', 'aifollowedscore', 'finalchanged',
             'timecreated', 'timemodified']);
 
         $studentsurveys = new backup_nested_element('studentsurveys');

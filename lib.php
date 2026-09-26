@@ -255,8 +255,6 @@ function aiproofreader_get_anon_id_secret() {
  * @return string
  */
 function aiproofreader_build_ai_model_label($response) {
-    $label = aiproofreader_get_current_ai_model_label();
-
     $reported = null;
     try {
         $data = $response->get_response_data();
@@ -267,8 +265,21 @@ function aiproofreader_build_ai_model_label($response) {
         $reported = null;
     }
 
+    return aiproofreader_format_ai_model_label($reported);
+}
+
+/**
+ * Combines the site's configured model label with a model name reported
+ * by the AI itself (if any).
+ *
+ * @param string|null $reported Model name reported by the AI response, if any
+ * @return string
+ */
+function aiproofreader_format_ai_model_label($reported) {
+    $label = aiproofreader_get_current_ai_model_label();
+
     if (!empty($reported) && $reported !== $label) {
-        return $label !== '' ? ($label . ' (reported: ' . $reported . ')') : $reported;
+        return $label !== '' ? ($label . ' (reported: ' . $reported . ')') : (string) $reported;
     }
 
     return $label;
@@ -309,6 +320,161 @@ function aiproofreader_count_sentences($text) {
     }
     preg_match_all('/[.!?]+/', $text, $matches);
     return count($matches[0]);
+}
+
+/**
+ * Counts paragraphs in plain text: blocks separated by line breaks that
+ * contain at least two sentences. Requiring two sentences means MLA
+ * heading lines (name, teacher, class, date) and a title are not counted
+ * as paragraphs. Counting stops at a "Works Cited", "Bibliography" or
+ * "References" heading, so citation entries don't count either.
+ *
+ * @param string $text Plain text (not HTML).
+ * @return int
+ */
+function aiproofreader_count_paragraphs($text) {
+    $blocks = preg_split('/\R/u', trim((string) $text));
+    $count = 0;
+    foreach ($blocks as $block) {
+        if (preg_match('/^\s*(works?\s+cited|bibliography|references|sources)\s*:?\s*$/i', $block)) {
+            break;
+        }
+        if (aiproofreader_count_sentences($block) >= 2) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+/**
+ * Options for the "Minimum length" activity setting. 0 means the original
+ * three-sentence minimum; 2-10 mean that many paragraphs.
+ *
+ * @return array
+ */
+function aiproofreader_minlength_options() {
+    $options = [0 => get_string('minlength_sentences', 'aiproofreader', 3)];
+    for ($i = 2; $i <= 10; $i++) {
+        $options[$i] = get_string('minlength_paragraphs', 'aiproofreader', $i);
+    }
+    return $options;
+}
+
+/**
+ * Short description of an activity's minimum length, e.g. "3 sentences".
+ *
+ * @param stdClass $aiproofreader
+ * @return string
+ */
+function aiproofreader_minlength_description($aiproofreader) {
+    $options = aiproofreader_minlength_options();
+    $minlength = (int) ($aiproofreader->minlength ?? 0);
+    return $options[$minlength] ?? $options[0];
+}
+
+/**
+ * Whether plain text meets the activity's minimum length.
+ *
+ * @param stdClass $aiproofreader
+ * @param string $text Plain text (not HTML).
+ * @return bool
+ */
+function aiproofreader_meets_minlength($aiproofreader, $text) {
+    $minlength = (int) ($aiproofreader->minlength ?? 0);
+    if ($minlength < 2) {
+        return aiproofreader_count_sentences($text) >= 3;
+    }
+    return aiproofreader_count_paragraphs($text) >= $minlength;
+}
+
+/**
+ * Works out a student's school grade level (0 = kindergarten) using the
+ * site's "Student grade level source" setting.
+ *
+ * - username: usernames start with a two-digit graduation year (e.g.
+ *   27jsmith graduates in 2027); the school year is taken to roll over on
+ *   1 July.
+ * - profilefield: a custom user profile field holds the grade (e.g. "9",
+ *   "09", "Grade 9" or "K").
+ *
+ * @param stdClass $user Needs at least id and username
+ * @param int|null $now Timestamp to calculate from (defaults to now)
+ * @return int|null Null if the grade can't be determined
+ */
+function aiproofreader_get_student_grade_level($user, $now = null) {
+    global $DB;
+
+    $source = get_config('aiproofreader', 'gradelevelsource');
+    if ($source === false) {
+        $source = 'none';
+    }
+
+    if ($source === 'username') {
+        if (!preg_match('/^(\d{2})[a-z]/i', (string) ($user->username ?? ''), $matches)) {
+            return null;
+        }
+        $now = $now ?? time();
+        $year = (int) date('Y', $now);
+        $schoolyearend = ((int) date('n', $now) >= 7) ? $year + 1 : $year;
+        $gradyear = 2000 + (int) $matches[1];
+        $grade = 12 - ($gradyear - $schoolyearend);
+        return ($grade >= 0 && $grade <= 12) ? $grade : null;
+    }
+
+    if ($source === 'profilefield') {
+        $shortname = trim((string) get_config('aiproofreader', 'gradelevelprofilefield'));
+        if ($shortname === '') {
+            return null;
+        }
+        $value = $DB->get_field_sql(
+            "SELECT d.data
+               FROM {user_info_data} d
+               JOIN {user_info_field} f ON f.id = d.fieldid
+              WHERE f.shortname = ? AND d.userid = ?",
+            [$shortname, $user->id]
+        );
+        $value = trim((string) $value);
+        if (preg_match('/^k/i', $value)) {
+            return 0;
+        }
+        if (preg_match('/\d+/', $value, $matches)) {
+            $grade = (int) $matches[0];
+            return ($grade >= 0 && $grade <= 12) ? $grade : null;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * The default "Grade level" for a new activity: the lowest grade among the
+ * students enrolled in the course, clamped to the grades in the lexile
+ * table. Falls back to grade 9 if no student's grade can be determined.
+ *
+ * @param int $courseid
+ * @return string
+ */
+function aiproofreader_get_default_gradelevel($courseid) {
+    $map = aiproofreader_gradelexile_map();
+    $mingrade = min(array_keys($map));
+    $maxgrade = max(array_keys($map));
+
+    $context = context_course::instance($courseid);
+    $students = get_enrolled_users($context, 'mod/aiproofreader:submit', 0, 'u.id, u.username', null, 0, 0, true);
+
+    $lowest = null;
+    foreach ($students as $student) {
+        $grade = aiproofreader_get_student_grade_level($student);
+        if ($grade !== null && ($lowest === null || $grade < $lowest)) {
+            $lowest = $grade;
+        }
+    }
+
+    if ($lowest === null) {
+        return '9';
+    }
+
+    return (string) max($mingrade, min($maxgrade, $lowest));
 }
 
 /**
@@ -470,7 +636,10 @@ function aiproofreader_render_student_survey($survey) {
 }
 
 /**
- * Renders the draft or final submission content (text, file link, or Google Drive link).
+ * Renders the draft or final submission content. The student's formatting
+ * (bold, italics, indents, alignment, spacing) is shown whenever it was
+ * captured - typed into the editor, or converted from a Word or Google
+ * Doc - with a link to the original file or Google Doc underneath.
  *
  * @param context_module $context
  * @param stdClass $submission
@@ -480,16 +649,38 @@ function aiproofreader_render_student_survey($survey) {
 function aiproofreader_render_submission_content($context, $submission, $stage) {
     $type = $stage === 'draft' ? $submission->initialsubmissiontype : $submission->finalsubmissiontype;
     $text = $stage === 'draft' ? $submission->initialtext : $submission->finaltext;
+    $html = $stage === 'draft' ? ($submission->initialtexthtml ?? null) : ($submission->finaltexthtml ?? null);
     $gdrivelink = $stage === 'draft' ? $submission->initialgdrivelink : $submission->finalgdrivelink;
-    $filearea = $stage === 'draft' ? 'draftsubmission' : 'finalsubmission';
 
+    $original = '';
     if ($type === 'gdrive' && !empty($gdrivelink)) {
-        return html_writer::link($gdrivelink, $gdrivelink, ['target' => '_blank', 'rel' => 'noopener']);
+        $original = html_writer::link($gdrivelink, s($gdrivelink), ['target' => '_blank', 'rel' => 'noopener']);
     } else if ($type === 'file') {
-        return aiproofreader_render_submission_file_link($context, $submission->id, $filearea);
-    } else {
-        return html_writer::div(format_text($text, FORMAT_PLAIN), 'generalbox');
+        $filearea = $stage === 'draft' ? 'draftsubmission' : 'finalsubmission';
+        $original = aiproofreader_render_submission_file_link($context, $submission->id, $filearea);
+    } else if ($type === 'gdrive') {
+        $filearea = $stage === 'draft' ? 'draftgdrivefile' : 'finalgdrivefile';
+        $original = aiproofreader_render_submission_file_link($context, $submission->id, $filearea);
     }
+
+    $out = '';
+    if (!empty($html)) {
+        $out .= html_writer::div(
+            format_text($html, FORMAT_HTML, ['context' => $context]),
+            'aiproofreader-paper'
+        );
+    } else if (!empty($text) && ($type === 'text' || $original === '')) {
+        $out .= html_writer::div(format_text($text, FORMAT_PLAIN), 'generalbox');
+    }
+
+    if ($original !== '') {
+        $out .= html_writer::div(
+            ($out !== '' ? get_string('originalsubmission', 'aiproofreader') . ' ' : '') . $original,
+            'aiproofreader-original mt-2'
+        );
+    }
+
+    return $out;
 }
 
 /**
@@ -594,7 +785,7 @@ function aiproofreader_supports($feature) {
         case FEATURE_GROUPINGS:
             return false;
         case FEATURE_COMPLETION_TRACKS_VIEWS:
-            return false;
+            return true;
         case FEATURE_COMPLETION_HAS_RULES:
             return true;
         case FEATURE_MOD_ARCHETYPE:
@@ -702,6 +893,11 @@ function aiproofreader_add_instance($aiproofreader, $mform = null) {
         unset($aiproofreader->aiinstructions_editor);
     }
 
+    // A grade type of "None" is stored as a maximum of 0 points.
+    if (($aiproofreader->gradetype ?? 'point') === 'none') {
+        $aiproofreader->grade = 0;
+    }
+
     $aiproofreader->id = $DB->insert_record('aiproofreader', $aiproofreader);
 
     if ($mform) {
@@ -728,8 +924,7 @@ function aiproofreader_add_instance($aiproofreader, $mform = null) {
  * this point, unlike inside add_instance()/update_instance() themselves).
  *
  * Used here to finish an Assignment Import: reposition the new activity
- * right after the source Assignment, copy its restrict-access conditions,
- * and hide the now-superseded Assignment (left in place, not deleted, for
+ * right after the source Assignment and hide the now-superseded Assignment (left in place, not deleted, for
  * the teacher's reference).
  *
  * This runs for every course module add/edit sitewide, not just ours, so
@@ -752,15 +947,9 @@ function aiproofreader_coursemodule_edit_post_actions($moduleinfo, $course) {
     $sourcecm = $DB->get_record('course_modules', ['id' => $sourcecmid]);
 
     if ($sourcecm) {
-        // Copy the raw restriction rule directly - this avoids needing
-        // to replicate Moodle's JS-driven Restrict Access tree UI.
-        $DB->set_field(
-            'course_modules',
-            'availability',
-            $sourcecm->availability,
-            ['id' => $moduleinfo->coursemodule]
-        );
-
+        // Restrict Access conditions are copied into the form itself by
+        // assign_importer (so the teacher sees them and core saves them),
+        // so they are deliberately not overwritten here.
         $destsection = $DB->get_record('course_sections', ['id' => $sourcecm->section], '*', MUST_EXIST);
 
         // Find whichever course module currently follows the source
@@ -820,6 +1009,11 @@ function aiproofreader_update_instance($aiproofreader, $mform = null) {
         $aiproofreader->aiinstructions       = $aiproofreader->aiinstructions_editor['text'];
         $aiproofreader->aiinstructionsformat = $aiproofreader->aiinstructions_editor['format'];
         unset($aiproofreader->aiinstructions_editor);
+    }
+
+    // A grade type of "None" is stored as a maximum of 0 points.
+    if (($aiproofreader->gradetype ?? 'point') === 'none') {
+        $aiproofreader->grade = 0;
     }
 
     $result = $DB->update_record('aiproofreader', $aiproofreader);
@@ -897,11 +1091,21 @@ function aiproofreader_grade_item_update($aiproofreader, $grades = null) {
         'grademin'  => 0,
     ];
 
+    // A maximum of 0 points means the activity isn't graded: keep a
+    // gradebook item of type "none" so nothing appears in the grader report.
+    if ((int) $aiproofreader->grade <= 0) {
+        $params = [
+            'itemname' => clean_param($aiproofreader->name, PARAM_NOTAGS),
+            'gradetype' => GRADE_TYPE_NONE,
+        ];
+        $grades = ($grades === 'reset') ? 'reset' : null;
+    }
+
     if (isset($aiproofreader->gradecat)) {
         $params['categoryid'] = $aiproofreader->gradecat;
     }
 
-    if (isset($aiproofreader->gradepass) && $aiproofreader->gradepass !== '') {
+    if ((int) $aiproofreader->grade > 0 && isset($aiproofreader->gradepass) && $aiproofreader->gradepass !== '') {
         $params['gradepass'] = $aiproofreader->gradepass;
     }
 
@@ -931,6 +1135,12 @@ function aiproofreader_grade_item_update($aiproofreader, $grades = null) {
  */
 function aiproofreader_update_grades($aiproofreader, $userid = 0, $nullifnone = true) {
     global $DB;
+
+    if ((int) $aiproofreader->grade <= 0) {
+        // Not graded - there is nothing to push to the gradebook.
+        aiproofreader_grade_item_update($aiproofreader);
+        return;
+    }
 
     if ($userid) {
         $sql = "SELECT s.userid, g.grade, g.timemodified
@@ -1048,7 +1258,7 @@ function aiproofreader_reset_userdata($data) {
 }
 
 /**
- * Serves files from the draftsubmission and finalsubmission file areas.
+ * Serves files from the submission file areas and the Additional files area.
  *
  * @param stdClass $course
  * @param stdClass $cm
@@ -1066,7 +1276,7 @@ function mod_aiproofreader_pluginfile($course, $cm, $context, $filearea, $args, 
         return false;
     }
 
-    if (!in_array($filearea, ['draftsubmission', 'finalsubmission', 'additionalfiles'])) {
+    if (!in_array($filearea, ['draftsubmission', 'finalsubmission', 'draftgdrivefile', 'finalgdrivefile', 'additionalfiles'])) {
         return false;
     }
 

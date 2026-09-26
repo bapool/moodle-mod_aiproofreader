@@ -41,10 +41,12 @@ class assign_importer {
      * form fields and moodleform will ignore unknown keys safely.
      *
      * @param int $assigncmid Course module id of the source Assignment.
+     * @param int $additionalfilesdraftid The form's current "Additional files" draft
+     *     area, so files the teacher already added are kept (0 to start a new one).
      * @return \stdClass
      */
-    public static function build_import_data($assigncmid) {
-        global $DB;
+    public static function build_import_data($assigncmid, $additionalfilesdraftid = 0) {
+        global $CFG, $DB;
 
         $cm = get_coursemodule_from_id('assign', $assigncmid, 0, false, MUST_EXIST);
         $assign = $DB->get_record('assign', ['id' => $cm->instance], '*', MUST_EXIST);
@@ -72,27 +74,46 @@ class assign_importer {
             'itemid' => $draftitemid,
         ];
 
+        // The Assignment's own attachments ("Additional files" on the
+        // Assignment settings form) become this activity's Additional files.
+        $data->additionalfiles_filemanager = self::copy_intro_attachments($sourcecontext, $additionalfilesdraftid);
+
         // Dates: same field names and meaning (unix timestamps) on both
         // activity types, so these copy over directly.
         $data->allowsubmissionsfromdate = $assign->allowsubmissionsfromdate;
         $data->duedate = $assign->duedate;
         $data->cutoffdate = $assign->cutoffdate;
 
-        // Grade: a negative value on mdl_assign.grade means the source uses
-        // a grading scale rather than points. AI Proofreader only supports
-        // point grading, so flag that rather than importing a nonsense
-        // negative max grade - the caller should warn the teacher.
+        // Grade: 0 on mdl_assign.grade means grade type "None", which maps
+        // straight across. A negative value means the source uses a grading
+        // scale rather than points. AI Proofreader only supports point
+        // grading, so flag that rather than importing a nonsense negative
+        // max grade - the caller should warn the teacher.
         $data->usesscale = ($assign->grade < 0);
-        $data->grade = $data->usesscale ? 100 : $assign->grade;
+        if ((int) $assign->grade === 0) {
+            $data->gradetype = 'none';
+            $data->grade = 100;
+        } else {
+            $data->gradetype = 'point';
+            $data->grade = $data->usesscale ? 100 : $assign->grade;
+        }
 
         // Completion: carry over both the tracking type (the "None /
         // Manual / Add requirements" radio) and the actual checkbox value,
         // so the checkbox shows as active rather than just being set with
         // no visible effect.
         $data->completion = $cm->completion;
-        $data->completionsubmit = ($cm->completion == COMPLETION_TRACKING_AUTOMATIC && !empty($assign->completionsubmit))
-            ? 1
-            : 0;
+        $automatic = ($cm->completion == COMPLETION_TRACKING_AUTOMATIC);
+        $data->completionsubmit = ($automatic && !empty($assign->completionsubmit)) ? 1 : 0;
+        $data->completionview = ($automatic && !empty($cm->completionview)) ? 1 : 0;
+        $data->completionexpected = $cm->completionexpected;
+
+        // The "Receive a grade" and "Passing grade" rules only make sense when the
+        // new activity is point-graded.
+        if ($automatic && $data->gradetype === 'point' && !$data->usesscale) {
+            $data->completionusegrade = !empty($cm->completiongradeitemnumber) ? 1 : 0;
+            $data->completionpassgrade = !empty($cm->completionpassgrade) ? 1 : 0;
+        }
 
         // Grade category: not stored on the assign table itself - it lives
         // on the linked grade_items row.
@@ -106,14 +127,20 @@ class assign_importer {
             $data->gradecat = $gradeitem->categoryid;
         }
 
+        // Restrict access conditions, shown in the form's Restrict access
+        // section so the teacher can see (and change) them before saving.
+        if (!empty($CFG->enableavailability) && !empty($cm->availability)) {
+            $data->availabilityconditionsjson = $cm->availability;
+        }
+
         // Standard course-module settings that transfer directly.
         $data->visible = $cm->visible;
         $data->groupmode = $cm->groupmode;
         $data->groupingid = $cm->groupingid;
 
         // Extra context, not mod_form fields - used after the new course
-        // module is created to finish positioning it, apply restrict-access
-        // conditions, and hide the source Assignment.
+        // module is created to finish positioning it and hide the source
+        // Assignment.
         $data->_sourcecmid = $cm->id;
         $data->_sourcename = $assign->name;
         $data->_section = $cm->section;
@@ -123,5 +150,41 @@ class assign_importer {
         $data->_completionexpected = $cm->completionexpected;
 
         return $data;
+    }
+
+    /**
+     * Copies the source Assignment's attachments into a draft file area
+     * for the "Additional files" file manager. Files with the same name as
+     * one already in the draft area are skipped.
+     *
+     * @param \context_module $sourcecontext The Assignment's context
+     * @param int $draftitemid Existing draft area to add to, or 0 for a new one
+     * @return int The draft area item id
+     */
+    protected static function copy_intro_attachments(\context_module $sourcecontext, $draftitemid) {
+        global $USER;
+
+        if (empty($draftitemid)) {
+            $draftitemid = file_get_unused_draft_itemid();
+        }
+
+        $fs = get_file_storage();
+        $usercontext = \context_user::instance($USER->id);
+
+        $files = $fs->get_area_files($sourcecontext->id, 'mod_assign', 'introattachment', 0, 'filename', false);
+        foreach ($files as $file) {
+            if ($fs->file_exists($usercontext->id, 'user', 'draft', $draftitemid, '/', $file->get_filename())) {
+                continue;
+            }
+            $fs->create_file_from_storedfile([
+                'contextid' => $usercontext->id,
+                'component' => 'user',
+                'filearea' => 'draft',
+                'itemid' => $draftitemid,
+                'filepath' => '/',
+            ], $file);
+        }
+
+        return $draftitemid;
     }
 }

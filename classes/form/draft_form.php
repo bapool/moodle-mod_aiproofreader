@@ -120,8 +120,12 @@ class draft_form extends \moodleform {
             $plaintext = aiproofreader_editor_html_to_text($data['onlinetext_editor']['text'] ?? '');
             if ($plaintext === '') {
                 $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
-            } else if (aiproofreader_count_sentences($plaintext) < 3) {
-                $errors['onlinetext_editor'] = get_string('err_mintextlength', 'aiproofreader');
+            } else if (!aiproofreader_meets_minlength($this->_customdata['aiproofreader'], $plaintext)) {
+                $errors['onlinetext_editor'] = get_string(
+                    'err_mintextlength',
+                    'aiproofreader',
+                    aiproofreader_minlength_description($this->_customdata['aiproofreader'])
+                );
             }
         }
 

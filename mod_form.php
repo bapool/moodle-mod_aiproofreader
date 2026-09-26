@@ -115,7 +115,20 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
             aiproofreader_gradelexile_options()
         );
         $mform->addHelpButton('gradelevel', 'gradelevel', 'aiproofreader');
-        $mform->setDefault('gradelevel', '9');
+        // New activities default to the lowest grade enrolled in the course.
+        $mform->setDefault(
+            'gradelevel',
+            empty($this->current->instance) ? aiproofreader_get_default_gradelevel($COURSE->id) : '9'
+        );
+
+        $mform->addElement(
+            'select',
+            'minlength',
+            get_string('minlength', 'aiproofreader'),
+            aiproofreader_minlength_options()
+        );
+        $mform->addHelpButton('minlength', 'minlength', 'aiproofreader');
+        $mform->setDefault('minlength', 0);
 
         $mform->addElement(
             'editor',
@@ -170,10 +183,23 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
         $mform->addElement('header', 'gradeheader', get_string('gradeheader', 'aiproofreader'));
         $mform->setExpanded('gradeheader', true);
 
+        // Point grading, or no grade at all (e.g. practice writing).
+        $mform->addElement(
+            'select',
+            'gradetype',
+            get_string('gradetype', 'aiproofreader'),
+            [
+                'point' => get_string('gradetype_point', 'aiproofreader'),
+                'none' => get_string('gradetype_none', 'aiproofreader'),
+            ]
+        );
+        $mform->addHelpButton('gradetype', 'gradetype', 'aiproofreader');
+        $mform->setDefault('gradetype', 'point');
+
         $mform->addElement('text', 'grade', get_string('maximumgrade', 'aiproofreader'), ['size' => '5']);
         $mform->setType('grade', PARAM_INT);
         $mform->setDefault('grade', 100);
-        $mform->addRule('grade', null, 'required', null, 'client');
+        $mform->hideIf('grade', 'gradetype', 'eq', 'none');
 
         $mform->addElement(
             'select',
@@ -182,9 +208,11 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
             grade_get_categories_menu($COURSE->id)
         );
         $mform->addHelpButton('gradecat', 'gradecategoryonmodform', 'grades');
+        $mform->hideIf('gradecat', 'gradetype', 'eq', 'none');
 
         $mform->addElement('text', 'gradepass', get_string('gradepass', 'grades'));
         $mform->addHelpButton('gradepass', 'gradepass', 'grades');
+        $mform->hideIf('gradepass', 'gradetype', 'eq', 'none');
         $mform->setType('gradepass', PARAM_RAW);
         $mform->setDefault('gradepass', '');
 
@@ -197,8 +225,8 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
         $mform->addHelpButton('hidegrader', 'hidegrader', 'aiproofreader');
         $mform->setDefault('hidegrader', 0);
 
-        // Completion, standard elements, buttons.
-        $this->add_completion_rules();
+        // Standard elements (including the Completion section, which calls
+        // add_completion_rules() itself only when completion is enabled), buttons.
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
     }
@@ -228,7 +256,10 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
         $validoptions = aiproofreader_get_course_assign_options($COURSE->id, $this->get_import_section_filter());
 
         if ($assigncmid > 0 && array_key_exists($assigncmid, $validoptions)) {
-            $importdata = \mod_aiproofreader\assign_importer::build_import_data($assigncmid);
+            $importdata = \mod_aiproofreader\assign_importer::build_import_data(
+                $assigncmid,
+                optional_param('additionalfiles_filemanager', 0, PARAM_INT)
+            );
             $importdata->sourceassigncmid = $assigncmid;
             $mform->setConstants((array) $importdata);
         }
@@ -290,7 +321,7 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
             $defaultvalues['aiinstructions_editor']['format'] = FORMAT_HTML;
         }
 
-        $draftitemid = file_get_submitted_draft_itemid('additionalfiles');
+        $draftitemid = file_get_submitted_draft_itemid('additionalfiles_filemanager');
         file_prepare_draft_area(
             $draftitemid,
             $this->context->id,
@@ -300,6 +331,14 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
             aiproofreader_get_additionalfiles_options()
         );
         $defaultvalues['additionalfiles_filemanager'] = $draftitemid;
+
+        // A stored maximum of 0 means the activity isn't graded.
+        if (!empty($this->current->instance) && isset($defaultvalues['grade']) && (int) $defaultvalues['grade'] <= 0) {
+            $defaultvalues['gradetype'] = 'none';
+            $defaultvalues['grade'] = 100;
+        } else {
+            $defaultvalues['gradetype'] = 'point';
+        }
     }
 
     /**
@@ -327,14 +366,17 @@ class mod_aiproofreader_mod_form extends moodleform_mod {
             $errors['cutoffdate'] = get_string('err_cutoffdatebeforedue', 'aiproofreader');
         }
 
-        if ($data['grade'] === '' || (int)$data['grade'] <= 0) {
-            $errors['grade'] = get_string('err_gradepositive', 'aiproofreader');
-        }
+        // Maximum points and grade to pass only matter for point grading.
+        if (($data['gradetype'] ?? 'point') === 'point') {
+            if ($data['grade'] === '' || (int)$data['grade'] <= 0) {
+                $errors['grade'] = get_string('err_gradepositive', 'aiproofreader');
+            }
 
-        if ($data['gradepass'] !== '' && !is_numeric($data['gradepass'])) {
-            $errors['gradepass'] = get_string('err_gradepassnumeric', 'aiproofreader');
-        } else if ($data['gradepass'] !== '' && (float)$data['gradepass'] > (float)$data['grade']) {
-            $errors['gradepass'] = get_string('err_gradepassexceedsmax', 'aiproofreader');
+            if ($data['gradepass'] !== '' && !is_numeric($data['gradepass'])) {
+                $errors['gradepass'] = get_string('err_gradepassnumeric', 'aiproofreader');
+            } else if ($data['gradepass'] !== '' && (float)$data['gradepass'] > (float)$data['grade']) {
+                $errors['gradepass'] = get_string('err_gradepassexceedsmax', 'aiproofreader');
+            }
         }
 
         return $errors;

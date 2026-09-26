@@ -32,6 +32,9 @@ $string['aifeedbacksettings'] = 'AI Feedback';
 $string['aifollowedscoreheading'] = 'Did student follow AI instructions:';
 $string['aiinstructions'] = 'Additional AI instructions';
 $string['aiinstructions_help'] = 'These instructions are sent to the AI along with the activity instructions above, but are never shown to students. Use this field to give the AI extra grading criteria or context - for example, the basics of a rubric, or a checklist of key concepts a strong response should demonstrate (such as what students should have learned from a lab). The AI may paraphrase relevant points from here to help scaffold the student, but will not quote or list this text directly to them.';
+$string['aiprompt_belowminimum'] = 'IMPORTANT: This draft is shorter than the minimum length the teacher set for this assignment (at least {$a}). In the ASSIGNMENT SPECIFICS section, tell the student clearly that their draft does not meet the minimum length and that they need to add more before their final submission.';
+$string['aiprompt_changecheck_changed'] = 'The final version is different from the original draft.';
+$string['aiprompt_changecheck_unchanged'] = 'The final version is word-for-word the same as the original draft - the student made no changes. State this plainly at the start of your SUMMARY, and use a FOLLOWED SCORE of 1 unless the feedback asked for no changes at all.';
 $string['aiprompt_comparison'] = 'You are helping a teacher assess whether a student meaningfully improved their writing between draft and final, based on the AI feedback they received. The student is in grade {$a->gradelevel}.
 
 CRITICAL RULE - CHECK THIS FIRST: First compare the FINAL version to the ORIGINAL DRAFT to see whether the actual substance - the ideas, topic, and content the student wrote about - changed, or whether the student only fixed grammar, spelling, wording, or punctuation. If the substance is essentially the same as the draft, you must NOT re-decide from scratch whether the assignment was addressed - instead, use the same conclusion already reached in the assignment-specific feedback given below. If that feedback treated the draft as addressing the assignment topic (even if it suggested going further or adding more depth), then the final version addresses the assignment too, and the FOLLOWED SCORE must not be lowered to 1-2 for an \"off-topic\" reason - your SUMMARY should instead explicitly note that the student corrected the grammar/spelling issues that were identified. Only judge the FINAL version as not addressing the assignment - and only then consider a FOLLOWED SCORE of 1 or 2 for that reason - if the students actual subject matter genuinely changed to something unrelated to the assignment compared to the draft. When you do make that judgment, use the exact same subject-matter-only standard as the original feedback: ignore spelling/grammar, and only call it off-topic if it is genuinely unrelated, not merely underdeveloped. Never apply a stricter topic-relevance standard to the final version than was already applied to the draft.
@@ -55,7 +58,9 @@ Assignment-specific feedback given:
 {$a->feedbackassignment}
 
 Final version:
-{$a->final}';
+{$a->final}
+
+Automated change check (done by the software, not a guess): {$a->changecheck}';
 $string['aiprompt_feedback'] = '{$a->defaultinstructions}
 
 The student is in grade {$a->gradelevel}. Your feedback must not exceed a {$a->lexile}L reading level - treat this as a ceiling, not a target to approach. When in doubt, simplify further rather than less. Use short sentences, common everyday words, and one idea per sentence. If you must use a term the student may not know, define it in plain language right after using it.
@@ -64,8 +69,11 @@ Assignment instructions: {$a->activityinstructions}
 
 Additional guidance from the teacher, not shown to the student: {$a->aiinstructions}
 
+{$a->minimumnote}
+
 Student draft:
 {$a->studenttext}';
+$string['aiprompt_imagesnote'] = 'The teacher included {$a} image(s) with the assignment instructions, attached to this message. Treat them as part of the assignment instructions.';
 $string['aiproofreader:addinstance'] = 'Add a new AI Proofreader activity';
 $string['aiproofreader:grade'] = 'Grade AI Proofreader submissions';
 $string['aiproofreader:submit'] = 'Submit drafts and final work to an AI Proofreader activity';
@@ -75,8 +83,11 @@ $string['aiunknownerror'] = 'The AI request was not successful, and did not retu
 $string['allowsubmissionsfromdate'] = 'Allow submissions from';
 $string['assignmentname'] = 'Assignment name';
 $string['availability'] = 'Availability';
+$string['belowminimumfeedback'] = 'Your draft does not meet the minimum length for this assignment (at least {$a}). Please add more before you submit your final version.';
 $string['cannotopendocx'] = 'Could not open the Word document.';
 $string['cannotreadfile'] = 'Could not read the uploaded file.';
+$string['changesnotchecked_file'] = 'Because you are uploading a file, AI Proofreader can\'t check whether you made changes before you submit. Make sure you have revised your document using the feedback above. Your teacher will be able to see whether your final version is different from your draft.';
+$string['changesnotchecked_gdrive'] = 'Because you are submitting a Google Drive document, AI Proofreader can\'t check whether you made changes before you submit. Make sure you have revised your document using the feedback above. Your teacher will be able to see whether your final version is different from your draft.';
 $string['completionsubmit'] = 'Student must make a final submission to complete this activity';
 $string['confirmreturntodraft'] = 'Return {$a}\'s submission to draft status? They will see their existing AI feedback again and will be able to revise and resubmit their final version. If they already completed the survey, their previous answers will be shown pre-filled when they resubmit.';
 $string['confirmreturntodraft_gradewarning'] = 'This submission has already been graded. Returning it to draft will clear the existing grade and remove it from the gradebook.';
@@ -178,7 +189,8 @@ $string['err_gradepassexceedsmax'] = 'Grade to pass cannot exceed the maximum po
 $string['err_gradepassnumeric'] = 'Grade to pass must be a number.';
 $string['err_gradepositive'] = 'Maximum points must be a positive number.';
 $string['err_invalidgdrivelink'] = 'Please enter a valid Google Drive link.';
-$string['err_mintextlength'] = 'Your draft needs at least 3 sentences before you can submit it for feedback.';
+$string['err_mintextlength'] = 'Your draft needs at least {$a} before you can submit it for feedback.';
+$string['err_mintextlengthfinal'] = 'Your final version needs at least {$a}.';
 $string['err_nochangesmade'] = 'It looks like no changes were made to your draft. Please revise your writing based on the feedback before submitting your final version.';
 $string['err_nofileuploaded'] = 'Please upload a Word document.';
 $string['err_nosubmissiontype'] = 'You must enable at least one submission type: online text, file, or Google Drive link.';
@@ -188,6 +200,11 @@ $string['feedbackassignmentheading'] = 'Assignment Specifics';
 $string['feedbackgrammarheading'] = 'Grammar and Spelling';
 $string['feedbackheading'] = 'AI Feedback';
 $string['fileuploadlabel'] = 'File (Word document)';
+$string['finalbelowminimum'] = 'The final version is shorter than the minimum length for this assignment (at least {$a}).';
+$string['finalchanged_no'] = 'No changes were detected - the final version is the same as the draft.';
+$string['finalchanged_unknown'] = 'Could not be checked (the draft or final text is not available).';
+$string['finalchanged_yes'] = 'Changes were made.';
+$string['finalchangedheading'] = 'Changes from draft to final:';
 $string['finalsubmissionheading'] = 'Submit your final version';
 $string['freetextlabel'] = 'Anything the AI feedback missed? (optional)';
 $string['gdrivefetchfailed'] = 'We could not read the content of your Google Doc. Make sure it is shared as "Anyone with the link can view" (or comment/edit), then try again. In Google Docs: Share > General access > Anyone with the link.';
@@ -198,7 +215,14 @@ $string['generatingfeedbackerror'] = 'Something went wrong generating your feedb
 $string['gradedheading'] = 'Grade';
 $string['gradeheader'] = 'Grade';
 $string['gradelevel'] = 'Grade level';
-$string['gradelevel_help'] = 'The grade level the AI should target when generating feedback. This also sets the target lexile measure used to gauge text complexity.';
+$string['gradelevel_help'] = 'The grade level the AI should target when generating feedback. This also sets the target lexile measure used to gauge text complexity. For a new activity this defaults to the lowest grade among the students enrolled in the course.';
+$string['gradelevelprofilefield'] = 'Grade level profile field';
+$string['gradelevelprofilefield_desc'] = 'Short name of the custom user profile field that holds each student\'s grade (for example "9", "09", "Grade 9" or "K"). Only used when the source above is "Custom profile field".';
+$string['gradelevelsource'] = 'Student grade level source';
+$string['gradelevelsource_desc'] = 'Where AI Proofreader finds each student\'s grade level. When a teacher adds a new activity, the "Grade level" setting defaults to the lowest grade among the students enrolled in the course (grade 9 if no grades can be found).';
+$string['gradelevelsource_none'] = 'None (always default to grade 9)';
+$string['gradelevelsource_profilefield'] = 'Custom profile field';
+$string['gradelevelsource_username'] = 'Graduation year at the start of the username (e.g. 27jsmith)';
 $string['gradelexile'] = 'Grade {$a->grade} (Lexile {$a->lexile}L)';
 $string['graderq1overallfeedback'] = 'Was the overall feedback useful?';
 $string['graderq2specificfeedback'] = 'Was the assignment-specific feedback useful?';
@@ -207,6 +231,10 @@ $string['graderq4feedbackfollowed'] = 'Was the feedback followed?';
 $string['graderq5aiscaffold'] = 'Did the AI help scaffold the student?';
 $string['graderq6aiaccuracy'] = 'Was the AI feedback accurate for this assignment?';
 $string['gradesaved'] = 'Grade saved.';
+$string['gradetype'] = 'Grade type';
+$string['gradetype_help'] = 'Point: the teacher enters a grade out of the maximum points, which goes to the gradebook. None: the activity isn\'t graded - the teacher still reviews the final version, adds comments and completes the survey, but nothing is sent to the gradebook.';
+$string['gradetype_none'] = 'None';
+$string['gradetype_point'] = 'Point';
 $string['hidegrader'] = 'Hide grader identity from students';
 $string['hidegrader_help'] = 'If enabled, students will not see which teacher graded their submission.';
 $string['importcurrentsectiononlylabel'] = 'Only show assignments in this section';
@@ -220,6 +248,10 @@ $string['invaliddocx'] = 'This Word document could not be read.';
 $string['loadimportassign'] = 'Load';
 $string['maximumgrade'] = 'Maximum points';
 $string['messageprovider:returnedtodraft'] = 'Notification when a submission is returned to draft for revision';
+$string['minlength'] = 'Minimum length';
+$string['minlength_help'] = 'The shortest draft a student can submit. Drafts typed into the text box can\'t be submitted until they reach this length. Google Drive and uploaded drafts are still accepted, but the student\'s AI feedback tells them the draft is too short. A paragraph counts when it has at least two sentences, so heading lines (name, teacher, class, date) and a title are not counted, and nothing after a "Works Cited", "Bibliography" or "References" heading is counted.';
+$string['minlength_paragraphs'] = '{$a} paragraphs';
+$string['minlength_sentences'] = '{$a} sentences';
 $string['missingidandcmid'] = 'You must specify a course_module ID or an instance ID';
 $string['modulename'] = 'AI Proofreader';
 $string['modulename_help'] = 'The AI Proofreader activity lets students submit a draft, receive AI-generated feedback on grammar/spelling and assignment specifics, then submit a revised final version for teacher grading.';
@@ -229,6 +261,7 @@ $string['notextextracted'] = 'No text could be extracted from this {$a} file.';
 $string['nothingtogradeyet'] = 'This student has not submitted a final version yet.';
 $string['onlinetextlabel'] = 'Your text';
 $string['onlinetextlabelfinal'] = 'Your initial draft should be edited according to the above feedback. Simply submitting the draft could result in a lowered final grade.';
+$string['originalsubmission'] = 'Original:';
 $string['piiredactionbatchsize'] = 'PII redaction batch size';
 $string['piiredactionbatchsize_desc'] = 'Maximum number of draft submissions and, separately, final submissions the nightly PII redaction task will process in a single run. Keeps a large backlog from generating too many AI requests in one night; any submissions left over are simply picked up on the next run.';
 $string['piiredactionenabled'] = 'Enable nightly PII redaction';
@@ -260,12 +293,15 @@ $string['privacy:metadata:aiproofreader_submission:comparisonaimodel'] = 'Label 
 $string['privacy:metadata:aiproofreader_submission:feedbackaimodel'] = 'Label identifying the AI model/provider that generated the feedback.';
 $string['privacy:metadata:aiproofreader_submission:feedbackassignment'] = 'AI-generated Assignment Specifics feedback on the draft.';
 $string['privacy:metadata:aiproofreader_submission:feedbackgrammar'] = 'AI-generated Grammar and Spelling feedback on the draft.';
+$string['privacy:metadata:aiproofreader_submission:finalchanged'] = 'Whether the final version differs from the draft.';
 $string['privacy:metadata:aiproofreader_submission:finalgdrivelink'] = 'The student\'s final Google Drive link, if that submission type was used.';
 $string['privacy:metadata:aiproofreader_submission:finaltext'] = 'The student\'s final submitted text.';
+$string['privacy:metadata:aiproofreader_submission:finaltexthtml'] = 'The student\'s final submission with its formatting, as HTML.';
 $string['privacy:metadata:aiproofreader_submission:finaltextredacted'] = 'An AI-redacted, de-identified copy of the student\'s final submission text, generated by the nightly PII redaction task for safe public release.';
 $string['privacy:metadata:aiproofreader_submission:finaltimesubmitted'] = 'When the final version was submitted.';
 $string['privacy:metadata:aiproofreader_submission:initialgdrivelink'] = 'The student\'s draft Google Drive link, if that submission type was used.';
 $string['privacy:metadata:aiproofreader_submission:initialtext'] = 'The student\'s draft text.';
+$string['privacy:metadata:aiproofreader_submission:initialtexthtml'] = 'The student\'s draft submission with its formatting, as HTML.';
 $string['privacy:metadata:aiproofreader_submission:initialtextredacted'] = 'An AI-redacted, de-identified copy of the student\'s draft submission text, generated by the nightly PII redaction task for safe public release.';
 $string['privacy:metadata:aiproofreader_submission:initialtimesubmitted'] = 'When the draft was submitted.';
 $string['privacy:metadata:aiproofreader_submission:status'] = 'The submission workflow status.';
@@ -281,10 +317,12 @@ $string['privacy:metadata:aiproofreader_teachersurvey:q4feedbackfollowed'] = 'Wh
 $string['privacy:metadata:aiproofreader_teachersurvey:q5aiscaffold'] = 'Whether the AI helped scaffold the student (1-5).';
 $string['privacy:metadata:aiproofreader_teachersurvey:q6aiaccuracy'] = 'Whether the AI feedback was accurate for this assignment (1-5).';
 $string['privacy:metadata:aiproofreader_teachersurvey:timecreated'] = 'When the teacher survey was submitted.';
+$string['privacy:metadata:aivision'] = 'When image input is turned on and an activity\'s instructions include images, AI Proofreader sends the AI prompt together with those images directly to the AI endpoint configured by the site administrator, instead of through Moodle\'s AI subsystem. No Moodle user identifier (name, email, or user ID) is included.';
+$string['privacy:metadata:aivision:prompttext'] = 'The AI prompt: the activity instructions, the student\'s draft (and final) text, and the AI feedback already given.';
 $string['privacy:metadata:core_ai'] = 'AI Proofreader sends the student\'s draft and final text to the site\'s configured AI provider to generate feedback and a comparison.';
 $string['privacy:metadata:core_files'] = 'AI Proofreader stores uploaded Word document submissions using the Moodle file API.';
 $string['privacy:metadata:core_message'] = 'When a teacher returns a submission to draft status, AI Proofreader sends the student a Moodle notification (and, per the student\'s own notification preferences, an email) letting them know, with a link back to the activity.';
-$string['privacy:metadata:google_drive'] = 'When a student submits their draft or final work as a Google Drive link, AI Proofreader sends the document\'s URL to Google Docs\' export endpoint to retrieve the document\'s plain text content. No Moodle user identifier (name, email, or user ID) is sent to Google as part of this request - only the document URL the student provided.';
+$string['privacy:metadata:google_drive'] = 'When a student submits their draft or final work as a Google Drive link, AI Proofreader sends the document\'s URL to Google Docs\' export endpoint to retrieve the document\'s content - as plain text for the AI, and as a Word copy used to show the teacher the student\'s formatting. No Moodle user identifier (name, email, or user ID) is sent to Google as part of this request - only the document URL the student provided.';
 $string['privacy:metadata:google_drive:docurl'] = 'The URL of the Google Doc the student submitted, sent so its content can be retrieved.';
 $string['q1overallfeedback'] = 'Was the overall feedback useful?';
 $string['q2specificfeedback'] = 'Was the assignment-specific feedback useful?';
@@ -304,16 +342,21 @@ Please review the feedback and submit a revised final version when you\'re ready
 {$a->url}';
 $string['returnedtodraftmessage_subject'] = '"{$a->activityname}" was returned to draft';
 $string['returntodraft'] = 'Return to draft';
+$string['reviewedheading'] = 'Teacher review';
 $string['savegrade'] = 'Save grade';
 $string['scalelabelhigh'] = '<span style="vertical-align: baseline;">&nbsp;&nbsp;High</span>';
 $string['scalelabellow'] = '<span style="vertical-align: baseline;">Low&nbsp;&nbsp;</span>';
 $string['settings_customizedwarning'] = 'You are using customized AI instructions instead of the site default.';
+$string['settings_gradelevelheading'] = 'Default grade level';
+$string['settings_gradelevelheading_desc'] = 'How the "Grade level" setting is pre-filled when a teacher adds a new activity.';
 $string['settings_piiredactionheading'] = 'PII redaction';
 $string['settings_piiredactionheading_desc'] = 'These settings control the nightly task that creates de-identified copies of student writing, ahead of any public release of that data.';
 $string['settings_restoredefault'] = 'Restore to default';
 $string['settings_restoredefault_confirm'] = 'Replace your customized AI instructions with the site default? This cannot be undone.';
 $string['settings_surveyheading'] = 'Survey settings';
 $string['settings_surveyheading_desc'] = 'The survey on/off switch, individual question wording, and which questions are collected are all configured from the AI Proofreader Report plugin (Site administration &rarr; Plugins &rarr; Local plugins &rarr; AI Proofreader Report settings), not here. That plugin is where survey data is also reported on, so its settings page keeps everything survey-related in one place.';
+$string['settings_visionheading'] = 'Image input (vision model)';
+$string['settings_visionheading_desc'] = 'Moodle\'s AI subsystem can only send text. When this is turned on and an activity\'s instructions or Additional files contain images (PNG, JPEG, GIF or WebP), AI Proofreader sends the prompt and the images directly to the OpenAI-compatible endpoint below, which must be serving a vision-language model. Activities without images, and any image request that fails, still go through Moodle\'s AI subsystem as usual. These direct requests are not recorded in Moodle\'s AI usage reports.';
 $string['statusdraft'] = 'Not yet started';
 $string['statusfeedbackpending'] = 'Generating feedback';
 $string['statusfeedbackready'] = 'Feedback ready, awaiting final submission';
@@ -334,7 +377,20 @@ $string['teacherfreetextlabel'] = 'Any concerns about the AI feedback? (optional
 $string['teacheroverviewheading'] = 'Student submissions';
 $string['teachersurveyheading'] = 'Teacher survey (required to save the grade)';
 $string['unsupportedfiletype'] = 'Unsupported file type: {$a}';
+$string['visionapikey'] = 'API key';
+$string['visionapikey_desc'] = 'Sent as a Bearer token. Leave empty if the endpoint doesn\'t need one.';
+$string['visionenabled'] = 'Send images to the AI';
+$string['visionenabled_desc'] = 'Send images from the activity instructions and Additional files to the vision model below.';
+$string['visionendpoint'] = 'Chat completions URL';
+$string['visionendpoint_desc'] = 'The full OpenAI-compatible chat completions URL, for example https://ai.example.org/v1/chat/completions. The host must not be on Moodle\'s cURL blocked hosts list.';
+$string['visionmaximages'] = 'Maximum images per request';
+$string['visionmaximages_desc'] = 'Images from the instructions are used first, then Additional files. Images are resized so their longest side is at most 1568 pixels.';
+$string['visionmodel'] = 'Model name';
+$string['visionmodel_desc'] = 'The model name exactly as the endpoint expects it, for example Qwen/Qwen3-VL-235B-A22B-Instruct-FP8. It must be a vision-language model.';
+$string['visiontimeout'] = 'Timeout (seconds)';
+$string['visiontimeout_desc'] = 'How long to wait for the AI to answer an image request before falling back to a text-only request.';
 $string['waitingforgrade'] = 'Your final version has been submitted and is waiting to be graded.';
+$string['waitingforreview'] = 'Your final version has been submitted and is waiting for your teacher to review it.';
 $string['yourdraftheading'] = 'Your draft';
 $string['yourgrade'] = 'Your grade: {$a->grade} / {$a->max}';
 $string['yourstatus'] = 'Status';

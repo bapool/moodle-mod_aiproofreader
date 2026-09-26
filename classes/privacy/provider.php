@@ -60,6 +60,7 @@ class provider implements
                 'userid' => 'privacy:metadata:aiproofreader_submission:userid',
                 'status' => 'privacy:metadata:aiproofreader_submission:status',
                 'initialtext' => 'privacy:metadata:aiproofreader_submission:initialtext',
+                'initialtexthtml' => 'privacy:metadata:aiproofreader_submission:initialtexthtml',
                 'initialtextredacted' => 'privacy:metadata:aiproofreader_submission:initialtextredacted',
                 'initialgdrivelink' => 'privacy:metadata:aiproofreader_submission:initialgdrivelink',
                 'initialtimesubmitted' => 'privacy:metadata:aiproofreader_submission:initialtimesubmitted',
@@ -67,12 +68,14 @@ class provider implements
                 'feedbackassignment' => 'privacy:metadata:aiproofreader_submission:feedbackassignment',
                 'feedbackaimodel' => 'privacy:metadata:aiproofreader_submission:feedbackaimodel',
                 'finaltext' => 'privacy:metadata:aiproofreader_submission:finaltext',
+                'finaltexthtml' => 'privacy:metadata:aiproofreader_submission:finaltexthtml',
                 'finaltextredacted' => 'privacy:metadata:aiproofreader_submission:finaltextredacted',
                 'finalgdrivelink' => 'privacy:metadata:aiproofreader_submission:finalgdrivelink',
                 'finaltimesubmitted' => 'privacy:metadata:aiproofreader_submission:finaltimesubmitted',
                 'aicomparison' => 'privacy:metadata:aiproofreader_submission:aicomparison',
                 'comparisonaimodel' => 'privacy:metadata:aiproofreader_submission:comparisonaimodel',
                 'aifollowedscore' => 'privacy:metadata:aiproofreader_submission:aifollowedscore',
+                'finalchanged' => 'privacy:metadata:aiproofreader_submission:finalchanged',
                 'timecreated' => 'privacy:metadata:aiproofreader_submission:timecreated',
             ],
             'privacy:metadata:aiproofreader_submission'
@@ -131,6 +134,13 @@ class provider implements
         $collection->add_external_location_link('google_drive', [
             'docurl' => 'privacy:metadata:google_drive:docurl',
         ], 'privacy:metadata:google_drive');
+
+        // With image input turned on, prompts for activities whose
+        // instructions include images go straight to the site's configured
+        // AI endpoint rather than through core_ai.
+        $collection->add_external_location_link('aivision', [
+            'prompttext' => 'privacy:metadata:aivision:prompttext',
+        ], 'privacy:metadata:aivision');
 
         return $collection;
     }
@@ -240,6 +250,7 @@ class provider implements
                     'status' => $submission->status,
                     'initialsubmissiontype' => $submission->initialsubmissiontype,
                     'initialtext' => $submission->initialtext,
+                    'initialtexthtml' => $submission->initialtexthtml,
                     'initialtextredacted' => $submission->initialtextredacted,
                     'initialgdrivelink' => $submission->initialgdrivelink,
                     'initialtimesubmitted' => $submission->initialtimesubmitted
@@ -249,6 +260,7 @@ class provider implements
                     'feedbackaimodel' => $submission->feedbackaimodel,
                     'finalsubmissiontype' => $submission->finalsubmissiontype,
                     'finaltext' => $submission->finaltext,
+                    'finaltexthtml' => $submission->finaltexthtml,
                     'finaltextredacted' => $submission->finaltextredacted,
                     'finalgdrivelink' => $submission->finalgdrivelink,
                     'finaltimesubmitted' => $submission->finaltimesubmitted
@@ -256,6 +268,7 @@ class provider implements
                     'aicomparison' => $submission->aicomparison,
                     'comparisonaimodel' => $submission->comparisonaimodel,
                     'aifollowedscore' => $submission->aifollowedscore,
+                    'finalchanged' => $submission->finalchanged,
                 ];
 
                 $pluginname = get_string('pluginname', 'mod_aiproofreader');

@@ -67,3 +67,17 @@
 .aiproofreader-spinner {
     margin-top: 0.5rem;
 }
+
+/* A student's formatted submission, shown to the teacher like a page. */
+.path-mod-aiproofreader .aiproofreader-paper {
+    background-color: #fff;
+    color: #1d2125;
+    border: 1px solid #dee2e6;
+    padding: 1.5rem 2rem;
+    max-width: 52rem;
+    overflow-wrap: break-word;
+}
+
+.path-mod-aiproofreader .aiproofreader-paper p {
+    margin-top: 0;
+}

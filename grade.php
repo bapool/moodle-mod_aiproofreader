@@ -87,7 +87,7 @@ if ($data = $mform->get_data()) {
         $aiproofreader,
         $submission,
         $USER->id,
-        $data->grade,
+        $data->grade ?? 0,
         $data->instructorcomments_editor['text'],
         $data->instructorcomments_editor['format'],
         $surveydata
@@ -142,6 +142,38 @@ echo aiproofreader_collapsible_section(
     aiproofreader_render_submission_content($context, $submission, 'final'),
     true
 );
+
+// Whether the final version differs from the draft. This is the only
+// change check available for Google Drive and uploaded submissions.
+$finalchanged = $submission->finalchanged ?? null;
+if ($finalchanged === null) {
+    // Submissions made before this check existed.
+    $finalchanged = \mod_aiproofreader\submission_manager::detect_final_changed($submission);
+}
+if ($finalchanged === null) {
+    $changedkey = 'finalchanged_unknown';
+    $changedtype = 'notifywarning';
+} else if ((int) $finalchanged === 1) {
+    $changedkey = 'finalchanged_yes';
+    $changedtype = 'notifysuccess';
+} else {
+    $changedkey = 'finalchanged_no';
+    $changedtype = 'notifyproblem';
+}
+echo $OUTPUT->notification(
+    html_writer::tag('strong', get_string('finalchangedheading', 'aiproofreader')) . ' '
+        . get_string($changedkey, 'aiproofreader'),
+    $changedtype,
+    false
+);
+
+if (!empty($submission->finaltext) && !aiproofreader_meets_minlength($aiproofreader, $submission->finaltext)) {
+    echo $OUTPUT->notification(
+        get_string('finalbelowminimum', 'aiproofreader', aiproofreader_minlength_description($aiproofreader)),
+        'notifywarning',
+        false
+    );
+}
 
 $studentsurvey = $DB->get_record('aiproofreader_studentsurvey', ['submissionid' => $submission->id]);
 if ($studentsurvey) {

@@ -81,8 +81,11 @@ class final_form extends \moodleform {
 
             $submission = $this->_customdata['submission'] ?? null;
             if ($submission && $submission->initialsubmissiontype === 'text' && !empty($submission->initialtext)) {
+                // Start from the draft exactly as the student formatted it.
                 $mform->setDefault('onlinetext_editor', [
-                    'text' => nl2br(s($submission->initialtext)),
+                    'text' => !empty($submission->initialtexthtml)
+                        ? $submission->initialtexthtml
+                        : nl2br(s($submission->initialtext)),
                     'format' => FORMAT_HTML,
                 ]);
             }
@@ -117,6 +120,26 @@ class final_form extends \moodleform {
             );
             if ($multipletypes) {
                 $mform->hideIf('gdrivefile', 'submissiontype', 'neq', 'gdrive');
+            }
+        }
+
+        // The "no changes made" check only works for text typed into the
+        // editor - say so when the student picks a type it can't cover.
+        foreach (['gdrive', 'file'] as $uncheckedtype) {
+            if (isset($typeoptions[$uncheckedtype])) {
+                $elementname = 'changesnotchecked_' . $uncheckedtype;
+                $mform->addElement(
+                    'static',
+                    $elementname,
+                    '',
+                    \html_writer::div(
+                        get_string('changesnotchecked_' . $uncheckedtype, 'aiproofreader'),
+                        'alert alert-info mb-0'
+                    )
+                );
+                if ($multipletypes) {
+                    $mform->hideIf($elementname, 'submissiontype', 'neq', $uncheckedtype);
+                }
             }
         }
 
@@ -217,6 +240,12 @@ class final_form extends \moodleform {
 
             if ($finaltext === '') {
                 $errors['onlinetext_editor'] = get_string('err_notextentered', 'aiproofreader');
+            } else if (!aiproofreader_meets_minlength($this->_customdata['aiproofreader'], $finaltext)) {
+                $errors['onlinetext_editor'] = get_string(
+                    'err_mintextlengthfinal',
+                    'aiproofreader',
+                    aiproofreader_minlength_description($this->_customdata['aiproofreader'])
+                );
             } else {
                 $submission = $this->_customdata['submission'] ?? null;
                 if (

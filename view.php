@@ -24,6 +24,7 @@
 
 require_once('../../config.php');
 require_once($CFG->dirroot . '/mod/aiproofreader/lib.php');
+require_once($CFG->libdir . '/completionlib.php');
 
 $id = optional_param('id', 0, PARAM_INT);
 $retry = optional_param('retry', 0, PARAM_BOOL);
@@ -49,6 +50,10 @@ $event = \mod_aiproofreader\event\course_module_viewed::create([
 $event->add_record_snapshot('course', $course);
 $event->add_record_snapshot('aiproofreader', $aiproofreader);
 $event->trigger();
+
+// Marks the activity viewed, for the "View the activity" completion condition.
+$completion = new completion_info($course);
+$completion->set_module_viewed($cm);
 
 $PAGE->set_url('/mod/aiproofreader/view.php', ['id' => $cm->id, 'groupid' => $groupid]);
 $PAGE->set_title(format_string($aiproofreader->name));
@@ -95,7 +100,8 @@ if (!$isgrader) {
                 $onlinetext,
                 $data->gdrivelink ?? '',
                 $data->submissionfile ?? 0,
-                $data->gdrivefile ?? 0
+                $data->gdrivefile ?? 0,
+                $data->onlinetext_editor['text'] ?? ''
             );
             redirect(new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]));
         }
@@ -125,7 +131,8 @@ if (!$isgrader) {
                 $data->gdrivelink ?? '',
                 $data->submissionfile ?? 0,
                 $data->gdrivefile ?? 0,
-                $surveydata
+                $surveydata,
+                $data->onlinetext_editor['text'] ?? ''
             );
             redirect(new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]));
         }
@@ -266,7 +273,9 @@ if ($isgrader) {
     ) {
         echo aiproofreader_collapsible_section(
             get_string('yourdraftheading', 'aiproofreader'),
-            format_text($submission->initialtext, FORMAT_PLAIN)
+            !empty($submission->initialtexthtml)
+                ? format_text($submission->initialtexthtml, FORMAT_HTML, ['context' => $context])
+                : format_text($submission->initialtext, FORMAT_PLAIN)
         );
     }
 
@@ -304,19 +313,27 @@ if ($isgrader) {
             echo $OUTPUT->notification(get_string('gdrivefetchfailed', 'aiproofreader'), 'notifyproblem');
         }
 
-        echo $OUTPUT->notification(get_string('waitingforgrade', 'aiproofreader'), 'notifysuccess');
+        echo $OUTPUT->notification(
+            get_string((int) $aiproofreader->grade > 0 ? 'waitingforgrade' : 'waitingforreview', 'aiproofreader'),
+            'notifysuccess'
+        );
     } else if ($submission->status === 'graded') {
         echo aiproofreader_render_feedback_block($submission);
 
         $grade = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]);
         if ($grade) {
             echo $OUTPUT->box_start('generalbox aiproofreader-grade');
-            echo $OUTPUT->heading(get_string('gradedheading', 'aiproofreader'), 3);
-            echo html_writer::tag('p', get_string(
-                'yourgrade',
-                'aiproofreader',
-                ['grade' => $grade->grade, 'max' => $aiproofreader->grade]
-            ));
+            echo $OUTPUT->heading(
+                get_string((int) $aiproofreader->grade > 0 ? 'gradedheading' : 'reviewedheading', 'aiproofreader'),
+                3
+            );
+            if ((int) $aiproofreader->grade > 0) {
+                echo html_writer::tag('p', get_string(
+                    'yourgrade',
+                    'aiproofreader',
+                    ['grade' => $grade->grade, 'max' => $aiproofreader->grade]
+                ));
+            }
             if (!empty($grade->instructorcomments)) {
                 echo html_writer::tag('h4', get_string('instructorcomments', 'aiproofreader'));
                 echo format_text($grade->instructorcomments, $grade->instructorcommentsformat);

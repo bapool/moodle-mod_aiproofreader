@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/aiproofreader/db" VERSION="20260811" COMMENT="XMLDB file for Moodle mod/aiproofreader"
+<XMLDB PATH="mod/aiproofreader/db" VERSION="20260925" COMMENT="XMLDB file for Moodle mod/aiproofreader"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -15,6 +15,7 @@
         <FIELD NAME="duedate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Due date"/>
         <FIELD NAME="cutoffdate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Cut-off date, no submissions accepted after"/>
         <FIELD NAME="gradelevel" TYPE="char" LENGTH="2" NOTNULL="true" DEFAULT="9" SEQUENCE="false" COMMENT="Grade level for AI feedback (3-12); also determines the target lexile via a lookup table in lib.php"/>
+        <FIELD NAME="minlength" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Minimum draft length: 0 = 3 sentences, 2-10 = that many paragraphs"/>
         <FIELD NAME="aiinstructions" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Additional AI-only instructions from the teacher"/>
         <FIELD NAME="aiinstructionsformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Format of aiinstructions field"/>
         <FIELD NAME="submtext" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Online text submission enabled"/>
@@ -40,6 +41,7 @@
         <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="draft" SEQUENCE="false" COMMENT="draft, feedbackpending, feedbackready, finalsubmitted, graded"/>
         <FIELD NAME="initialsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
         <FIELD NAME="initialtext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Draft online text submission"/>
+        <FIELD NAME="initialtexthtml" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Draft submission with its formatting, as HTML (editor HTML, or converted from a Word/Google Doc)"/>
         <FIELD NAME="initialtextredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of initialtext for de-identified release, populated by the nightly PII redaction task"/>
         <FIELD NAME="initialtextredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When initialtextredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
         <FIELD NAME="initialtextpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into initialtextredacted"/>
@@ -51,6 +53,7 @@
         <FIELD NAME="feedbackaimodel" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Label identifying the AI model/provider that generated the feedback"/>
         <FIELD NAME="finalsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
         <FIELD NAME="finaltext" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Final online text submission"/>
+        <FIELD NAME="finaltexthtml" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Final submission with its formatting, as HTML (editor HTML, or converted from a Word/Google Doc)"/>
         <FIELD NAME="finaltextredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of finaltext for de-identified release, populated by the nightly PII redaction task"/>
         <FIELD NAME="finaltextredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When finaltextredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
         <FIELD NAME="finaltextpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into finaltextredacted"/>
@@ -60,6 +63,7 @@
         <FIELD NAME="aicomparisontimecreated" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="comparisonaimodel" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Label identifying the AI model/provider that generated the comparison"/>
         <FIELD NAME="aifollowedscore" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated 1-5 score of how well the student followed the feedback, for the teacher"/>
+        <FIELD NAME="finalchanged" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false" COMMENT="Whether the final text differs from the draft: 1 = changed, 0 = identical, null = could not be checked"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>

@@ -2,6 +2,33 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.6.1 (2026092600)
+### Added
+- Grade type "None" (Grade section, alongside "Point"), for activities that aren't graded. It is stored as a maximum of 0 points; Maximum points, Grade category and Grade to pass are hidden; no gradebook item is created (an existing one is switched to type "none"); the grading page collects instructor comments and the teacher survey without a grade field; and students see "Teacher review" instead of a grade. Assignment Import maps an Assignment with grade type None to it (previously this left Maximum points at 0, which could not be saved).
+- "View the activity" completion condition (`FEATURE_COMPLETION_TRACKS_VIEWS`); `view.php` now records the view for completion.
+
+### Changed
+- Assignment Import now also copies the source Assignment's "View the activity", "Receive a grade" and "Passing grade" completion conditions and its expected completion date, so an Assignment whose only condition was viewing no longer fails with "You must select at least one condition".
+- Assignment Import now puts the source Assignment's Restrict access conditions into the form's Restrict access section when the Assignment is loaded, so the teacher can see and change them before saving, and core saves them. Previously they were written directly to the database after saving, which was invisible in the form and overwrote any change the teacher made.
+
+## v0.6.0 (2026092500)
+### Added
+- Image input: new site settings (Site administration -> Plugins -> Activity modules -> AI Proofreader -> Image input) let images in an activity's instructions and Additional files be sent to a vision-language model. Moodle 4.5's `core_ai` `generate_text` action only accepts text, so when this is on and images are present, the prompt and images are sent directly to an OpenAI-compatible chat completions endpoint (e.g. vLLM). Images are resized to at most 1568 px on the longest side and sent as base64 JPEG; only images still referenced in the instructions are included; a per-request image limit and timeout are configurable. Activities without images, and any image request that fails, fall back to the existing `core_ai` text path, so students always get feedback. New `classes/ai_client.php`; `<think>` blocks are stripped from responses; the model the endpoint reports is stamped into `feedbackaimodel`/`comparisonaimodel`. Declared as an external location in the privacy provider.
+- Minimum length setting per activity (below Grade level): 3 sentences (default, the previous fixed rule) or 2-10 paragraphs. Typed drafts and typed final versions can't be submitted below it. Google Drive and uploaded drafts are accepted, but the AI is told the draft is too short and a plain note is added to the top of the Assignment Specifics feedback; the grading page flags a too-short final version. A paragraph counts when it has at least two sentences (so MLA heading lines and a title don't count), and counting stops at a "Works Cited"/"Bibliography"/"References" heading. New `minlength` field.
+- New activities default their Grade level to the lowest grade among the students enrolled in the course (clamped to 3-12; grade 9 if unknown). The grade comes from the two-digit graduation year at the start of the username (e.g. `27jsmith`) or a custom profile field, chosen in the new "Student grade level source" site setting (Default grade level section). The setting defaults to "None" (always grade 9), so other sites opt in; existing sites must choose a source after upgrading.
+- Teachers see the draft and final with the student's own formatting (bold, italics, underline, alignment, first-line and hanging indents, line and paragraph spacing) instead of stripped text. Typed text keeps its editor HTML (cleaned); Word uploads, Google Docs picked from Drive, and pasted Google Doc links (fetched as `.docx` at submission time, so it's a snapshot) are converted by the new `classes/docx_html_converter.php`, which resolves paragraph/run styles and document defaults. A link to the original file or Doc is shown underneath. New `initialtexthtml`/`finaltexthtml` fields. The final-version editor is now pre-filled with the draft's formatted HTML, and the student's own draft preview shows its formatting too.
+- Draft-to-final change check for every submission type: new `finalchanged` field set at final submission, shown on the grading page ("Changes were made" / "No changes were detected"), and passed to the AI comparison, which is told to say so plainly and score 1 when nothing changed. Students choosing Google Drive or file upload on the final form are told their changes can't be checked before submitting and that their teacher will see whether the final differs from the draft.
+- Assignment Import now copies the source Assignment's attached files into Additional files, alongside any files the teacher already added (same-name files are skipped).
+
+### Changed
+- Word (.docx) text extraction now keeps one line per paragraph (it previously ran all paragraphs together), which improves what the AI sees and makes paragraph counting possible.
+- `pluginfile` now serves the `draftgdrivefile`/`finalgdrivefile` areas (to the owning student and graders) so the grading page can link to Google Docs picked from Drive.
+- `data_preprocessing()` now reads the Additional files draft id under the file manager's real element name (`additionalfiles_filemanager`), the standard pattern, so an existing draft area is reused when the form is redisplayed.
+- `aiprompt_feedback` gained a `{$a->minimumnote}` placeholder and `aiprompt_comparison` a `{$a->changecheck}` line; `err_mintextlength` now names the activity's minimum.
+
+### Fixed
+- The "Student must make a final submission to complete this activity" checkbox appeared in the Grade section of the settings form even in courses with completion tracking turned off. `mod_form.php` called `add_completion_rules()` itself; Moodle already calls it from the Completion section only when completion is enabled, so the manual call was removed and the checkbox now appears only under Completion conditions.
+
 ## v0.5.4 (2026091900)
 ### Fixed
 - Grading page didn't reload previously saved teacher-survey answers when a teacher reopened an already-graded submission - the survey radios and free-text box came back blank even though the answers were still stored, forcing the teacher to re-answer every question just to change the grade or comments. `grade.php` now also preloads the existing `aiproofreader_teachersurvey` row into the form alongside the grade and instructor comments.

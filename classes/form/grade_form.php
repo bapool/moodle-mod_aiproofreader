@@ -49,14 +49,17 @@ class grade_form extends \moodleform {
         $mform->addElement('header', 'gradeheader', get_string('gradeheader', 'aiproofreader'));
         $mform->setExpanded('gradeheader', true);
 
-        $mform->addElement(
-            'text',
-            'grade',
-            get_string('maximumgrade', 'aiproofreader') . ' (0-' . (int)$aiproofreader->grade . ')',
-            ['size' => '5']
-        );
-        $mform->setType('grade', PARAM_INT);
-        $mform->addRule('grade', null, 'required', null, 'client');
+        // Ungraded activities (grade type "None") only collect comments and the survey.
+        if ((int) $aiproofreader->grade > 0) {
+            $mform->addElement(
+                'text',
+                'grade',
+                get_string('maximumgrade', 'aiproofreader') . ' (0-' . (int)$aiproofreader->grade . ')',
+                ['size' => '5']
+            );
+            $mform->setType('grade', PARAM_INT);
+            $mform->addRule('grade', null, 'required', null, 'client');
+        }
 
         $cmid = $this->_customdata['cmid'] ?? 0;
         $userid = $this->_customdata['userid'] ?? 0;
@@ -134,8 +137,9 @@ class grade_form extends \moodleform {
         $aiproofreader = $this->_customdata['aiproofreader'];
 
         if (
-            $data['grade'] === '' || !is_numeric($data['grade'])
-                || (int)$data['grade'] < 0 || (int)$data['grade'] > (int)$aiproofreader->grade
+            (int) $aiproofreader->grade > 0
+            && (!isset($data['grade']) || $data['grade'] === '' || !is_numeric($data['grade'])
+                || (int)$data['grade'] < 0 || (int)$data['grade'] > (int)$aiproofreader->grade)
         ) {
             $errors['grade'] = get_string('err_gradeoutofrange', 'aiproofreader', (int)$aiproofreader->grade);
         }

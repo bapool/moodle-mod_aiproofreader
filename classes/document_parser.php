@@ -15,7 +15,8 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Extracts plain text from uploaded Word documents so it can be sent to the AI.
+ * Extracts plain text (for the AI) and formatted HTML (for the teacher)
+ * from uploaded Word documents.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
@@ -26,15 +27,18 @@ namespace mod_aiproofreader;
 
 
 /**
- * Parser for extracting text from Word documents (.doc / .docx).
+ * Parser for Word documents (.doc / .docx).
  */
 class document_parser {
+    /** @var string WordprocessingML main namespace. */
+    public const NS_W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+
     /**
      * Extract text from a file based on its extension.
      *
      * @param string $filepath Full path to the file on disk
      * @param string $filename Original filename (for extension detection)
-     * @return string Extracted text
+     * @return string Extracted text, one line per paragraph
      * @throws \moodle_exception
      */
     public static function extract_text($filepath, $filename) {
@@ -51,12 +55,96 @@ class document_parser {
     }
 
     /**
-     * Extract text from a .docx file (a ZIP archive of XML parts).
+     * Converts a document to HTML that keeps the student's formatting
+     * (bold, italic, underline, alignment, indents, line spacing), for the
+     * teacher's grading view. Only .docx is supported; returns null for
+     * anything else or if the file can't be read.
+     *
+     * @param string $filepath Full path to the file on disk
+     * @param string $filename Original filename (for extension detection)
+     * @return string|null
+     */
+    public static function extract_html($filepath, $filename) {
+        if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== 'docx') {
+            return null;
+        }
+
+        try {
+            $parts = self::load_docx($filepath);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $converter = new docx_html_converter($parts['document'], $parts['styles']);
+        $html = $converter->convert();
+
+        return trim(strip_tags($html)) === '' ? null : $html;
+    }
+
+    /**
+     * Extract text from a .docx file (a ZIP archive of XML parts), keeping
+     * each paragraph on its own line so paragraphs can be counted.
      *
      * @param string $filepath
      * @return string
      */
     private static function extract_from_docx($filepath) {
+        $parts = self::load_docx($filepath);
+
+        $xpath = new \DOMXPath($parts['document']);
+        $xpath->registerNamespace('w', self::NS_W);
+
+        $lines = [];
+        foreach ($xpath->query('//w:body//w:p') as $paragraph) {
+            $line = '';
+            foreach ($xpath->query('.//w:t | .//w:tab | .//w:br | .//w:cr', $paragraph) as $node) {
+                // Skip text inside nested paragraphs (e.g. text boxes); they are
+                // visited as paragraphs in their own right.
+                if (self::closest_paragraph($node) !== $paragraph) {
+                    continue;
+                }
+                if ($node->localName === 't') {
+                    $line .= $node->textContent;
+                } else if ($node->localName === 'tab') {
+                    $line .= "\t";
+                } else {
+                    $line .= ' ';
+                }
+            }
+            $lines[] = rtrim($line);
+        }
+
+        $text = trim(preg_replace("/\n{3,}/", "\n\n", implode("\n", $lines)));
+
+        if ($text === '') {
+            throw new \moodle_exception('notextextracted', 'mod_aiproofreader', '', 'DOCX');
+        }
+
+        return $text;
+    }
+
+    /**
+     * Finds the nearest enclosing w:p element of a node.
+     *
+     * @param \DOMNode $node
+     * @return \DOMNode|null
+     */
+    private static function closest_paragraph(\DOMNode $node) {
+        $parent = $node->parentNode;
+        while ($parent && !($parent->namespaceURI === self::NS_W && $parent->localName === 'p')) {
+            $parent = $parent->parentNode;
+        }
+        return $parent;
+    }
+
+    /**
+     * Opens a .docx and loads its document and styles parts.
+     *
+     * @param string $filepath
+     * @return array With keys document (\DOMDocument) and styles (\DOMDocument|null)
+     * @throws \moodle_exception
+     */
+    private static function load_docx($filepath) {
         $zip = new \ZipArchive();
 
         if ($zip->open($filepath) !== true) {
@@ -64,32 +152,27 @@ class document_parser {
         }
 
         $content = $zip->getFromName('word/document.xml');
+        $stylescontent = $zip->getFromName('word/styles.xml');
         $zip->close();
 
         if ($content === false) {
             throw new \moodle_exception('notextextracted', 'mod_aiproofreader', '', 'DOCX');
         }
 
-        $xml = simplexml_load_string($content);
-        if ($xml === false) {
+        $document = new \DOMDocument();
+        if (!@$document->loadXML($content, LIBXML_NONET)) {
             throw new \moodle_exception('invaliddocx', 'mod_aiproofreader');
         }
 
-        $xml->registerXPathNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
-        $textnodes = $xml->xpath('//w:t');
-
-        $text = '';
-        foreach ($textnodes as $textnode) {
-            $text .= (string)$textnode;
+        $styles = null;
+        if ($stylescontent !== false) {
+            $styles = new \DOMDocument();
+            if (!@$styles->loadXML($stylescontent, LIBXML_NONET)) {
+                $styles = null;
+            }
         }
 
-        $text = trim($text);
-
-        if (empty($text)) {
-            throw new \moodle_exception('notextextracted', 'mod_aiproofreader', '', 'DOCX');
-        }
-
-        return $text;
+        return ['document' => $document, 'styles' => $styles];
     }
 
     /**

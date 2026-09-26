@@ -331,5 +331,31 @@ function xmldb_aiproofreader_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026091000, 'aiproofreader');
     }
 
+    if ($oldversion < 2026092500) {
+        // Minimum length setting on each activity.
+        $table = new xmldb_table('aiproofreader');
+        $field = new xmldb_field('minlength', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'gradelevel');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Formatted (HTML) copies of the draft and final, and the draft/final change check.
+        $table = new xmldb_table('aiproofreader_submission');
+        $field = new xmldb_field('initialtexthtml', XMLDB_TYPE_TEXT, null, null, false, null, null, 'initialtext');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field('finaltexthtml', XMLDB_TYPE_TEXT, null, null, false, null, null, 'finaltext');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field('finalchanged', XMLDB_TYPE_INTEGER, '1', null, false, null, null, 'aifollowedscore');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026092500, 'aiproofreader');
+    }
+
     return true;
 }
