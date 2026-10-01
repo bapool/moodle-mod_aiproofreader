@@ -182,7 +182,7 @@ IMPORTANT FEEDBACK REMINDERS:
 $string['defaultaiinstructions_desc'] = 'The base instructions sent to the AI for every AI Proofreader activity on this site, describing the proofreading philosophy, what to review, and the exact response format. This is combined with each activity\'s own instructions and any additional AI instructions the teacher adds. If you change the two section header phrases (GRAMMAR AND SPELLING / ASSIGNMENT SPECIFICS), update them consistently - the plugin parses the AI response by looking for those exact phrases.';
 $string['draftsubmissionheading'] = 'Submit your draft';
 $string['duedate'] = 'Due date';
-$string['earlygradenotice'] = 'Your current grade for this assignment is {$a->grade} / {$a->max}. You can still complete it - once you submit your final version, your teacher may regrade it.';
+$string['earlygradenotice'] = 'Your current grade for this assignment is {$a->grade} / {$a->max}. You can still complete it - once you submit your final version, your teacher will regrade it.';
 $string['earlygradesubmittednotice'] = 'Your final version has been submitted. Your current grade of {$a->grade} / {$a->max} will stay in place until your teacher regrades it.';
 $string['err_cutoffdatebeforedue'] = 'Cut-off date must be after the due date.';
 $string['err_duedatebeforeallow'] = 'Due date must be after the allow-submissions-from date.';
@@ -291,7 +291,7 @@ Redact ONLY the following:
 
 Do NOT redact:
 - Names of historical figures, authors, characters in books, or public figures referenced as part of the assignment\'s subject matter (for example, "George Washington", "Harper Lee", "Atticus Finch").
-- The placeholders "Fname" and "Lname", which may already appear in the text - leave them exactly as they are.
+- The placeholders "Fname", "Lname" and "[link]", which may already appear in the text - leave them exactly as they are.
 - Class names, school subjects, dates, place names (cities, states, countries) or the name of the school.
 
 Do not change, correct, rephrase, summarize, or remove any other part of the text - preserve the original wording, spelling, grammar, punctuation, line breaks and formatting exactly as given, except for the redactions described above. Do not add any commentary, explanation, notes, headings, or quotation marks around the output. Output ONLY the redacted text.

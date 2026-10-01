@@ -845,9 +845,9 @@ function aiproofreader_supports($feature) {
         case FEATURE_ADVANCED_GRADING:
             return false;
         case FEATURE_GROUPS:
-            return false;
+            return true;
         case FEATURE_GROUPINGS:
-            return false;
+            return true;
         case FEATURE_COMPLETION_TRACKS_VIEWS:
             return true;
         case FEATURE_COMPLETION_HAS_RULES:

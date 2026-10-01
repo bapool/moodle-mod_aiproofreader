@@ -79,7 +79,10 @@ class custom_completion extends activity_custom_completion {
     }
 
     /**
-     * Returns the display order of the completion rules.
+     * Returns the display order of the completion rules. Moodle requires
+     * every condition the activity supports to be listed here - custom and
+     * standard - or it stops with a coding error when that condition is
+     * used, so the standard grade conditions are included too.
      *
      * @return array
      */
@@ -87,6 +90,8 @@ class custom_completion extends activity_custom_completion {
         return [
             'completionview',
             'completionsubmit',
+            'completionusegrade',
+            'completionpassgrade',
         ];
     }
 }

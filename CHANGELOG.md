@@ -2,6 +2,19 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.7.5 (2026100103)
+### Fixed
+- The teacher's group selection didn't carry over: AI Proofreader had its own group dropdown and always opened on "All participants". It now supports groups (`FEATURE_GROUPS`, `FEATURE_GROUPINGS` - so the activity has the usual Group mode / Grouping settings) and uses Moodle's standard activity group selector, which remembers the selected group across the course: a group picked in a quiz or the gradebook is already selected here, and one picked here carries on elsewhere. Existing activities (created without a group mode) use the course's default group mode, or visible groups if it has none. In Separate groups mode, a teacher without "Access all groups" sees only their own groups' students, as in other activities.
+- Coding error "custom_completion::get_sort_order() is missing one or more completion conditions" when "Receive a grade" (or "Receive a passing grade") was used together with another completion condition. Moodle requires every condition the activity supports to be listed in `get_sort_order()`; `completionusegrade` and `completionpassgrade` were missing (since v0.6.1).
+- Known-name redaction no longer breaks historical and other full names that share a first or last name with someone in the course: a known first name followed on the same line by a capitalised word that isn't a known name ("Thomas Jefferson" when a classmate is called Thomas), or a known last name preceded by one ("Samuel Adams" when a classmate's surname is Adams), is left for the AI, which keeps historical figures. Classmates' full names, names on their own, heading lines, and last names after titles or words like "Principal", "Coach" or "Aunt" are still replaced.
+- Drafts that were only a pasted Google Docs link (typed submissions) were always rejected by the length check, because the AI replaced the link with "[address]" or similar. Google Docs/Drive links are now replaced with "[link]" in code (inside essays too - a link to a student's Doc leads to their name); a text with nothing left but placeholders is saved without calling the AI; and the length check now only applies to texts of 500+ characters, where a summary is the risk.
+
+### Added
+- `cli/reset_redaction.php --test=ID`: redacts one submission and prints the text after the code step, the AI's answer, the length check and the result, without saving anything.
+
+### Changed
+- Redaction logic moved into `classes/local/redactor.php`, shared by the nightly task and `--test`.
+
 ## v0.7.4 (2026100102)
 ### Fixed
 - PII redaction missed names: it relied entirely on the AI guessing which words were names, and it sometimes replaced a student's first name but not their last name, and left teacher names (e.g. "Mrs. Smith" in an MLA heading) in place. The nightly task now replaces the names Moodle already knows **in code, before the AI sees the text**: the first, middle, alternate and last names of everyone enrolled in the course (student, classmates, teachers), as whole words, including each part of multi-part names and lowercase names after a title ("mrs. hope" becomes "mrs. Lname"). New `classes/local/pii_names.php`. Those names are therefore never sent to the AI at all. The AI then redacts anything else, the known names are applied once more to its output, and AI output that is far shorter or longer than the text sent (a summary, refusal or added commentary) is rejected and retried the next night.

@@ -31,7 +31,9 @@ namespace mod_aiproofreader\local;
  * with a lowercase letter is left alone, so a name that is also an ordinary
  * word ("Will", "May", "Hunter") isn't stripped out of normal sentences -
  * unless it follows a title such as "Mr." or "Mrs.", which always marks a
- * name ("mrs. hope" becomes "mrs. Lname").
+ * name ("mrs. hope" becomes "mrs. Lname"). A known name that is part of
+ * someone else's full name - "Thomas Jefferson" when a classmate is called
+ * Thomas - is left for the AI, which keeps historical figures.
  * The trade-off: a capitalized ordinary word at the start of a sentence that
  * happens to match someone's name is redacted too. Over-redacting is the
  * safer mistake for a public release. A name the student typed entirely in
@@ -118,6 +120,14 @@ class pii_names {
     /** @var string Titles that mark the following word as a name, even when typed in lowercase ("mrs. hope"). */
     const TITLES = 'mr|mrs|ms|miss|mx|dr|coach|sir|madam';
 
+    /** @var string[] Words that, before a last name, still mean "this is that person" ("Principal Smith"). */
+    const LEADING_WORDS = [
+        'mr', 'mrs', 'ms', 'miss', 'mx', 'dr', 'coach', 'sir', 'madam', 'mister', 'principal', 'teacher',
+        'professor', 'prof', 'nurse', 'officer', 'deputy', 'pastor', 'reverend', 'rev', 'father', 'sister',
+        'brother', 'aunt', 'uncle', 'grandma', 'grandpa', 'grandmother', 'grandfather', 'cousin', 'captain',
+        'sergeant', 'judge', 'superintendent', 'dear', 'and', 'with', 'from', 'to', 'by', 'friend',
+    ];
+
     /**
      * The regular expression matching one name as a whole word. Group 1
      * captures a title just before the name, if there is one.
@@ -131,30 +141,78 @@ class pii_names {
     }
 
     /**
-     * Whether a match should be treated as a name: it follows a title, or
-     * it does not start with a lowercase letter (see the class comment).
+     * Whether a word is a known name or one of the placeholders.
      *
-     * @param string $name The matched name, without any title
-     * @param string $title The title before it, or ''
+     * @param string $word
+     * @param array $names
      * @return bool
      */
-    protected static function looks_like_name($name, $title) {
-        if ($title !== '') {
-            return true;
-        }
-        $first = \core_text::substr($name, 0, 1);
-        return $first === \core_text::strtoupper($first);
+    protected static function is_known($word, array $names) {
+        return $word === 'Fname' || $word === 'Lname' || isset($names[\core_text::strtolower($word)]);
     }
 
     /**
-     * Splits a match of pattern() into its title and name parts.
+     * Every place a known name occurs in the text that should be treated as
+     * that person's name, as [byte offset, byte length, title, placeholder].
      *
-     * @param array $m The match array
-     * @return string[] [title, name]
+     * A match is skipped when:
+     * - it starts with a lowercase letter and has no title before it
+     *   ("I will see" - see the class comment);
+     * - it is a first name followed, on the same line, by a capitalised word
+     *   that is not a known name - that is someone else's full name, such as
+     *   "Thomas Jefferson" when a classmate is called Thomas, and the AI
+     *   decides whether to redact it;
+     * - it is a last name preceded, on the same line, by a capitalised word
+     *   that is not a known name or a title-like word - "Samuel Adams" when
+     *   a classmate's surname is Adams.
+     *
+     * @param string $text
+     * @param string $name
+     * @param string $placeholder
+     * @param array $names
+     * @return array
      */
-    protected static function split_match(array $m) {
-        $title = $m[1] ?? '';
-        return [$title, \core_text::substr($m[0], \core_text::strlen($title))];
+    protected static function matches($text, $name, $placeholder, array $names) {
+        $found = [];
+        if (!preg_match_all(self::pattern($name), $text, $all, PREG_SET_ORDER | PREG_OFFSET_CAPTURE)) {
+            return $found;
+        }
+
+        foreach ($all as $m) {
+            $whole = $m[0][0];
+            $start = $m[0][1];
+            $title = (isset($m[1]) && $m[1][1] >= 0) ? $m[1][0] : '';
+            $nameonly = substr($whole, strlen($title));
+            $namestart = $start + strlen($title);
+            $nameend = $start + strlen($whole);
+
+            if ($title === '') {
+                $first = \core_text::substr($nameonly, 0, 1);
+                if ($first !== \core_text::strtoupper($first)) {
+                    continue;
+                }
+            }
+
+            if (
+                $title === '' && $placeholder === 'Fname'
+                && preg_match('/\G[ \t]+(\p{Lu}[\p{L}\'\-]*)/u', $text, $next, 0, $nameend)
+                && !self::is_known($next[1], $names)
+            ) {
+                continue;
+            }
+
+            if (
+                $title === '' && $placeholder === 'Lname'
+                && preg_match('/(\p{Lu}[\p{L}\'\-]*)[ \t]+$/u', substr($text, 0, $namestart), $prev)
+                && !self::is_known($prev[1], $names)
+                && !in_array(\core_text::strtolower($prev[1]), self::LEADING_WORDS)
+            ) {
+                continue;
+            }
+
+            $found[] = [$namestart, strlen($nameonly), $nameonly];
+        }
+        return $found;
     }
 
     /**
@@ -166,21 +224,17 @@ class pii_names {
      */
     public static function apply($text, array $names) {
         foreach ($names as $name => $placeholder) {
-            $text = preg_replace_callback(
-                self::pattern($name),
-                function ($m) use ($placeholder) {
-                    [$title, $name] = self::split_match($m);
-                    return self::looks_like_name($name, $title) ? $title . $placeholder : $m[0];
-                },
-                $text
-            );
+            // Replace from the end, so earlier offsets stay valid.
+            foreach (array_reverse(self::matches($text, $name, $placeholder, $names)) as [$offset, $length]) {
+                $text = substr_replace($text, $placeholder, $offset, $length);
+            }
         }
         return $text;
     }
 
     /**
      * The known names still present in a piece of (supposedly redacted)
-     * text, for spot-checking.
+     * text, for spot-checking. Uses the same rules as apply().
      *
      * @param string $text
      * @param array $names As returned by for_course()
@@ -189,15 +243,22 @@ class pii_names {
     public static function find($text, array $names) {
         $found = [];
         foreach ($names as $name => $placeholder) {
-            if (preg_match_all(self::pattern($name), $text, $matches, PREG_SET_ORDER)) {
-                foreach ($matches as $m) {
-                    [$title, $match] = self::split_match($m);
-                    if (self::looks_like_name($match, $title)) {
-                        $found[$match] = $match;
-                    }
-                }
+            foreach (self::matches($text, $name, $placeholder, $names) as [, , $match]) {
+                $found[$match] = $match;
             }
         }
         return array_values($found);
+    }
+
+    /**
+     * Replaces links to Google Docs and Google Drive with "[link]": a link
+     * to a student's own document leads to their name. Other web addresses
+     * (sources a student cites) are left alone.
+     *
+     * @param string $text
+     * @return string
+     */
+    public static function redact_links($text) {
+        return preg_replace('#https?://(?:docs|drive)\.google\.com/\S+#iu', '[link]', $text);
     }
 }

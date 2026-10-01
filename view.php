@@ -28,7 +28,6 @@ require_once($CFG->libdir . '/completionlib.php');
 
 $id = optional_param('id', 0, PARAM_INT);
 $retry = optional_param('retry', 0, PARAM_BOOL);
-$groupid = optional_param('groupid', 0, PARAM_INT);
 
 if ($id) {
     $cm = get_coursemodule_from_id('aiproofreader', $id, 0, false, MUST_EXIST);
@@ -55,7 +54,7 @@ $event->trigger();
 $completion = new completion_info($course);
 $completion->set_module_viewed($cm);
 
-$PAGE->set_url('/mod/aiproofreader/view.php', ['id' => $cm->id, 'groupid' => $groupid]);
+$PAGE->set_url('/mod/aiproofreader/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($aiproofreader->name));
 $PAGE->requires->js_call_amd('mod_aiproofreader/tts', 'init');
 $PAGE->set_heading(format_string($course->fullname));
@@ -66,6 +65,21 @@ if (isset($PAGE->activityheader)) {
 }
 
 $isgrader = has_capability('mod/aiproofreader:viewallsubmissions', $context);
+
+// Groups use Moodle's standard activity group selector, so the group a
+// teacher picked elsewhere in the course (a quiz, the gradebook) is already
+// selected here and stays selected when they move on. Activities created
+// before group support was added have no group mode of their own, so they
+// use the course's default group mode (or visible groups if it has none).
+$groupcm = clone $cm;
+if (!groups_get_activity_groupmode($groupcm, $course) && empty($course->groupmodeforce)) {
+    $groupcm->groupmode = !empty($course->groupmode) ? $course->groupmode : VISIBLEGROUPS;
+}
+$groupid = 0;
+if ($isgrader) {
+    // Must run before any output: it applies a group change from the selector.
+    $groupid = (int) groups_get_activity_group($groupcm, true);
+}
 
 // All form processing (and any redirects it triggers) happens BEFORE any
 // output, per Moodle convention - redirect() after output has started falls
@@ -197,39 +211,24 @@ if ($isgrader) {
     // Minimal read-only overview for now; the full grading page is next.
     echo $OUTPUT->heading(get_string('teacheroverviewheading', 'aiproofreader'), 3);
 
-    $groups = groups_get_all_groups($course->id);
-
-    if (!empty($groups)) {
-        echo html_writer::start_tag('form', ['method' => 'get', 'class' => 'aiproofreader-groupfilter form-inline mb-3']);
-        echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $cm->id]);
-
-        $groupoptions = [0 => get_string('allparticipants')];
-        foreach ($groups as $group) {
-            $groupoptions[$group->id] = format_string($group->name);
-        }
-
-        echo html_writer::tag(
-            'label',
-            get_string('group') . ' ',
-            ['for' => 'aiproofreader-groupid', 'class' => 'mr-2']
-        );
-        echo html_writer::select(
-            $groupoptions,
-            'groupid',
-            $groupid,
-            null,
-            ['id' => 'aiproofreader-groupid', 'onchange' => 'this.form.submit()']
-        );
-        echo html_writer::end_tag('form');
-    }
+    echo groups_print_activity_menu($groupcm, $PAGE->url, true);
 
     $cangrade = has_capability('mod/aiproofreader:grade', $context);
 
     $students = get_enrolled_users($context, 'mod/aiproofreader:submit', 0, 'u.*', null, 0, 0, true);
 
-    if (!empty($groupid)) {
-        $groupmemberids = groups_get_members($groupid, 'u.id');
-        $students = array_intersect_key($students, $groupmemberids);
+    if ($groupid) {
+        $students = array_intersect_key($students, groups_get_members($groupid, 'u.id'));
+    } else if (
+        groups_get_activity_groupmode($groupcm, $course) == SEPARATEGROUPS
+        && !has_capability('moodle/site:accessallgroups', $context)
+    ) {
+        // Separate groups, without access to all groups: only the teacher's own groups' students.
+        $members = [];
+        foreach (groups_get_all_groups($course->id, $USER->id, $groupcm->groupingid) as $group) {
+            $members += groups_get_members($group->id, 'u.id');
+        }
+        $students = array_intersect_key($students, $members);
     }
 
     $submissionrecords = $DB->get_records('aiproofreader_submission', ['aiproofreaderid' => $aiproofreader->id]);
