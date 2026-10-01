@@ -129,6 +129,17 @@ if (!$mform->is_submitted()) {
 echo $OUTPUT->header();
 echo $OUTPUT->heading(fullname($student));
 
+// The student made their final submission after a grade was already entered
+// ("Grade now", or kept after a return to draft). That grade stays in the
+// gradebook until the teacher saves a new one below.
+if ($submission->status === 'finalsubmitted' && $DB->record_exists('aiproofreader_grade', ['submissionid' => $submission->id])) {
+    echo $OUTPUT->notification(
+        get_string('submittedaftergradingnotice', 'aiproofreader', fullname($student)),
+        \core\output\notification::NOTIFY_WARNING,
+        false
+    );
+}
+
 echo aiproofreader_collapsible_section(
     get_string('draftsubmissionheading', 'aiproofreader'),
     aiproofreader_render_submission_content($context, $submission, 'draft'),

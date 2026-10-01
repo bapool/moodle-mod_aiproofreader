@@ -602,6 +602,70 @@ function aiproofreader_render_return_to_draft_link($cmid, $userid) {
 }
 
 /**
+ * Renders a "Grade now" / "Update grade" button that opens gradenow.php,
+ * where a teacher can enter a grade for a student who has not made a final
+ * submission yet without closing the assignment. Deliberately uses the
+ * quieter secondary style (it is the exception, for refusals or partial
+ * credit for a draft) and carries a tooltip explaining that the student
+ * can still complete the assignment.
+ *
+ * @param int $cmid
+ * @param int $userid
+ * @param bool $hasgrade Whether a grade already exists ("Update grade" instead of "Grade now")
+ * @return string HTML link
+ */
+function aiproofreader_render_grade_now_link($cmid, $userid, $hasgrade = false) {
+    $url = new moodle_url('/mod/aiproofreader/gradenow.php', ['id' => $cmid, 'userid' => $userid]);
+    return html_writer::link(
+        $url,
+        get_string($hasgrade ? 'updategrade' : 'gradenow', 'aiproofreader'),
+        [
+            'class' => 'btn btn-secondary btn-sm aiproofreader-gradenow',
+            'title' => get_string('gradenowtooltip', 'aiproofreader'),
+        ]
+    );
+}
+
+/**
+ * Renders a button that opens the full grading page (grade.php) for a
+ * student who has made a final submission. Work that needs grading
+ * ("Grade", "Regrade") uses the primary style so it is the most visible
+ * action on the teacher overview; an already-graded submission gets a
+ * quieter secondary "Update grade" button.
+ *
+ * @param int $cmid
+ * @param int $userid
+ * @param string $labelkey Language string key: grade, regrade or updategrade
+ * @param bool $primary Whether to use the primary (highlighted) button style
+ * @return string HTML link
+ */
+function aiproofreader_render_grade_link($cmid, $userid, $labelkey = 'grade', $primary = true) {
+    $url = new moodle_url('/mod/aiproofreader/grade.php', ['id' => $cmid, 'userid' => $userid]);
+    return html_writer::link(
+        $url,
+        get_string($labelkey, 'aiproofreader'),
+        ['class' => 'btn ' . ($primary ? 'btn-primary' : 'btn-secondary') . ' btn-sm aiproofreader-grade']
+    );
+}
+
+/**
+ * Whether the "Grade now" button should be offered yet. It only appears
+ * once the due date has passed (or always, if the activity has no due
+ * date), so teachers aren't invited to enter zeros while students are
+ * still within the time allowed. "Update grade" for a grade that already
+ * exists is always shown.
+ *
+ * @param stdClass $aiproofreader
+ * @return bool
+ */
+function aiproofreader_grade_now_available($aiproofreader) {
+    if ((int) $aiproofreader->grade <= 0) {
+        return false;
+    }
+    return empty($aiproofreader->duedate) || time() > (int) $aiproofreader->duedate;
+}
+
+/**
  * Renders a read-only summary of the student's survey answers, for the grader.
  * Returns just the content (no heading/wrapper) so callers can wrap it in
  * their own collapsible section.

@@ -239,32 +239,42 @@ if ($isgrader) {
         $byuserid[$s->userid] = $s;
     }
 
-    $table = new html_table();
-    $table->head = [get_string('fullname'), get_string('yourstatus', 'aiproofreader')];
+    // Grades already entered, keyed by submission id - including a grade
+    // entered before the final submission ("Grade now", or kept after a
+    // return to draft), which the table shows with its own status.
+    $grades = $DB->get_records_sql_menu(
+        "SELECT g.submissionid, g.grade
+           FROM {aiproofreader_grade} g
+           JOIN {aiproofreader_submission} s ON s.id = g.submissionid
+          WHERE s.aiproofreaderid = ?",
+        [$aiproofreader->id]
+    );
 
-    foreach ($students as $student) {
-        $status = isset($byuserid[$student->id]) ? $byuserid[$student->id]->status : 'draft';
-        $statustext = get_string('status' . $status, 'aiproofreader');
-
-        if (in_array($status, ['finalsubmitted', 'graded'])) {
-            $gradeurl = new moodle_url('/mod/aiproofreader/grade.php', ['id' => $cm->id, 'userid' => $student->id]);
-            $statustext = html_writer::link($gradeurl, $statustext);
-
-            if ($cangrade) {
-                $statustext .= ' ' . html_writer::tag(
-                    'span',
-                    aiproofreader_render_return_to_draft_link($cm->id, $student->id),
-                    ['class' => 'ml-2']
-                );
-            }
-        }
-
-        $table->data[] = [fullname($student), $statustext];
-    }
-
-    echo html_writer::table($table);
+    $table = new \mod_aiproofreader\table\submissions_table($aiproofreader, $cm, $cangrade, $PAGE->url);
+    $table->build($students, $byuserid, $grades);
 } else {
     echo aiproofreader_render_instructions($aiproofreader, $cm, $submission->status !== 'draft');
+
+    // A grade entered before the final submission ("Grade now", or kept
+    // after a return to draft). The assignment is still open, so encourage
+    // the student to finish it rather than treating the grade as final.
+    $earlygrade = null;
+    if ((int) $aiproofreader->grade > 0 && $submission->status !== 'graded') {
+        $earlygrade = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]) ?: null;
+    }
+    if ($earlygrade && $submission->status !== 'finalsubmitted') {
+        echo $OUTPUT->box_start('generalbox aiproofreader-earlygrade');
+        echo $OUTPUT->notification(
+            get_string('earlygradenotice', 'aiproofreader', ['grade' => $earlygrade->grade, 'max' => $aiproofreader->grade]),
+            \core\output\notification::NOTIFY_INFO,
+            false
+        );
+        if (!empty($earlygrade->instructorcomments)) {
+            echo html_writer::tag('h4', get_string('instructorcomments', 'aiproofreader'));
+            echo format_text($earlygrade->instructorcomments, $earlygrade->instructorcommentsformat);
+        }
+        echo $OUTPUT->box_end();
+    }
 
     if (
         $submission->status === 'feedbackready'
@@ -313,10 +323,21 @@ if ($isgrader) {
             echo $OUTPUT->notification(get_string('gdrivefetchfailed', 'aiproofreader'), 'notifyproblem');
         }
 
-        echo $OUTPUT->notification(
-            get_string((int) $aiproofreader->grade > 0 ? 'waitingforgrade' : 'waitingforreview', 'aiproofreader'),
-            'notifysuccess'
-        );
+        if ($earlygrade) {
+            echo $OUTPUT->notification(
+                get_string(
+                    'earlygradesubmittednotice',
+                    'aiproofreader',
+                    ['grade' => $earlygrade->grade, 'max' => $aiproofreader->grade]
+                ),
+                'notifysuccess'
+            );
+        } else {
+            echo $OUTPUT->notification(
+                get_string((int) $aiproofreader->grade > 0 ? 'waitingforgrade' : 'waitingforreview', 'aiproofreader'),
+                'notifysuccess'
+            );
+        }
     } else if ($submission->status === 'graded') {
         echo aiproofreader_render_feedback_block($submission);
 

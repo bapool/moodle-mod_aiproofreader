@@ -90,7 +90,7 @@ $string['changesnotchecked_file'] = 'Because you are uploading a file, AI Proofr
 $string['changesnotchecked_gdrive'] = 'Because you are submitting a Google Drive document, AI Proofreader can\'t check whether you made changes before you submit. Make sure you have revised your document using the feedback above. Your teacher will be able to see whether your final version is different from your draft.';
 $string['completionsubmit'] = 'Student must make a final submission to complete this activity';
 $string['confirmreturntodraft'] = 'Return {$a}\'s submission to draft status? They will see their existing AI feedback again and will be able to revise and resubmit their final version. If they already completed the survey, their previous answers will be shown pre-filled when they resubmit.';
-$string['confirmreturntodraft_gradewarning'] = 'This submission has already been graded. Returning it to draft will clear the existing grade and remove it from the gradebook.';
+$string['confirmreturntodraft_gradewarning'] = 'This submission has already been graded. The existing grade will stay in the gradebook until you regrade the resubmitted version.';
 $string['convertfromassign'] = 'Convert to AI Proofreader';
 $string['cutoffdate'] = 'Cut-off date';
 $string['cutoffdate_help'] = 'If set, students will not be able to submit after this date without an extension.';
@@ -182,6 +182,8 @@ IMPORTANT FEEDBACK REMINDERS:
 $string['defaultaiinstructions_desc'] = 'The base instructions sent to the AI for every AI Proofreader activity on this site, describing the proofreading philosophy, what to review, and the exact response format. This is combined with each activity\'s own instructions and any additional AI instructions the teacher adds. If you change the two section header phrases (GRAMMAR AND SPELLING / ASSIGNMENT SPECIFICS), update them consistently - the plugin parses the AI response by looking for those exact phrases.';
 $string['draftsubmissionheading'] = 'Submit your draft';
 $string['duedate'] = 'Due date';
+$string['earlygradenotice'] = 'Your current grade for this assignment is {$a->grade} / {$a->max}. You can still complete it - once you submit your final version, your teacher may regrade it.';
+$string['earlygradesubmittednotice'] = 'Your final version has been submitted. Your current grade of {$a->grade} / {$a->max} will stay in place until your teacher regrades it.';
 $string['err_cutoffdatebeforedue'] = 'Cut-off date must be after the due date.';
 $string['err_duedatebeforeallow'] = 'Due date must be after the allow-submissions-from date.';
 $string['err_gradeoutofrange'] = 'Grade must be between 0 and {$a}.';
@@ -212,6 +214,7 @@ $string['gdrivefilelabel'] = 'Or select a Google Doc from your Drive';
 $string['gdrivelinklabel'] = 'Google Drive link';
 $string['generatingfeedback'] = 'Generating your feedback... this usually takes a few seconds.';
 $string['generatingfeedbackerror'] = 'Something went wrong generating your feedback. Your draft has already been saved, so it is safe to leave this page and come back later, or try again below.';
+$string['grade'] = 'Grade';
 $string['gradedheading'] = 'Grade';
 $string['gradeheader'] = 'Grade';
 $string['gradelevel'] = 'Grade level';
@@ -224,6 +227,16 @@ $string['gradelevelsource_none'] = 'None (always default to grade 9)';
 $string['gradelevelsource_profilefield'] = 'Custom profile field';
 $string['gradelevelsource_username'] = 'Graduation year at the start of the username (e.g. 27jsmith)';
 $string['gradelexile'] = 'Grade {$a->grade} (Lexile {$a->lexile}L)';
+$string['gradenotstudent'] = 'That user is not a student in this activity.';
+$string['gradenotyetdue'] = 'Grade now becomes available after the due date, so students have the full time allowed to submit.';
+$string['gradenow'] = 'Grade now';
+$string['gradenowfeedbackpending'] = 'The student has submitted a draft, but its AI feedback hasn\'t been generated yet (it may still be in progress, or it failed and is waiting for the student to retry).';
+$string['gradenowheading'] = 'Grade now: {$a}';
+$string['gradenownotavailable'] = 'Grade now is only available for activities graded with points.';
+$string['gradenownotice'] = '{$a->name} has not made a final submission yet (current stage: {$a->stage}). The grade you save here goes to the gradebook right away, but the assignment stays open: {$a->name} can still complete it. When they do, it will show as "Submitted after grading" so you can regrade it.';
+$string['gradenowpreviousfinal'] = 'Previous final version (before it was returned to draft)';
+$string['gradenowsaved'] = 'Grade saved. {$a} can still complete the assignment.';
+$string['gradenowtooltip'] = 'Enter a grade before the student submits (for example a zero, or partial credit for a draft). The student can still complete the assignment.';
 $string['graderq1overallfeedback'] = 'Was the overall feedback useful?';
 $string['graderq2specificfeedback'] = 'Was the assignment-specific feedback useful?';
 $string['graderq3usedfeedback'] = 'Did the student use the feedback to improve their submission?';
@@ -245,9 +258,11 @@ $string['importfromassigndesc'] = 'Importing from an existing Moodle Assignment 
 $string['importfromassignlabel'] = 'Assignment to import from';
 $string['instructorcomments'] = 'Instructor comments';
 $string['invaliddocx'] = 'This Word document could not be read.';
+$string['lastsubmitted'] = 'Last submitted';
 $string['loadimportassign'] = 'Load';
 $string['maximumgrade'] = 'Maximum points';
 $string['messageprovider:returnedtodraft'] = 'Notification when a submission is returned to draft for revision';
+$string['messageprovider:submittedaftergrading'] = 'Notification when a student submits their final version after it was already graded';
 $string['minlength'] = 'Minimum length';
 $string['minlength_help'] = 'The shortest draft a student can submit. Drafts typed into the text box can\'t be submitted until they reach this length. Google Drive and uploaded drafts are still accepted, but the student\'s AI feedback tells them the draft is too short. A paragraph counts when it has at least two sentences, so heading lines (name, teacher, class, date) and a title are not counted, and nothing after a "Works Cited", "Bibliography" or "References" heading is counted.';
 $string['minlength_paragraphs'] = '{$a} paragraphs';
@@ -266,7 +281,20 @@ $string['piiredactionbatchsize'] = 'PII redaction batch size';
 $string['piiredactionbatchsize_desc'] = 'Maximum number of draft submissions and, separately, final submissions the nightly PII redaction task will process in a single run. Keeps a large backlog from generating too many AI requests in one night; any submissions left over are simply picked up on the next run.';
 $string['piiredactionenabled'] = 'Enable nightly PII redaction';
 $string['piiredactionenabled_desc'] = 'When enabled, a nightly scheduled task sends any new draft/final submission text to the AI to create a de-identified copy, with personal names and other personal information replaced by generic placeholders. The original text is never changed or removed - the de-identified copy is stored separately, for safer use when releasing student writing publicly. AI-based redaction is not perfect and should still be spot-checked before anything is actually released.';
-$string['piiredactionprompt'] = 'You are redacting personally identifiable information (PII) from a student\'s writing sample before it is used for research or public release. Redact ONLY the following: (1) personal names of real people - the student, a classmate, a teacher, a family member, or anyone else being personally identified - replacing each first name with the exact text "Fname" and each last name with the exact text "Lname"; (2) email addresses, replaced with "[email]"; (3) phone numbers, replaced with "[phone]"; (4) street addresses, replaced with "[address]". Do NOT redact the names of historical figures, authors, or public figures referenced as part of the assignment\'s academic subject matter (for example, do not redact "George Washington" or "Thomas Jefferson" in a history assignment). Do not change, correct, rephrase, or remove any other part of the text - preserve the original wording, spelling, grammar, punctuation, and formatting exactly as given, except for the specific redactions described above. Do not add any commentary, explanation, notes, or extra text of any kind. Output ONLY the redacted text.
+$string['piiredactionprompt'] = 'You are redacting personally identifiable information (PII) from a student\'s writing sample before it is used for research or public release. Missing a real person\'s name is a serious privacy failure; replacing an ordinary word by mistake is a minor one. When unsure whether a word is a person\'s name, redact it.
+
+Redact ONLY the following:
+1. Names of real, private people - the student, classmates, teachers, family members, friends, coaches, neighbors, or anyone else. Replace every first name (including nicknames and middle names) with the exact text "Fname" and every last name with the exact text "Lname". Redact BOTH parts of a full name: "Jordan Smith" becomes "Fname Lname". Keep titles but redact the name after them: "Mr. Smith" becomes "Mr. Lname", "Mrs. Jones" becomes "Mrs. Lname", "Coach Davis" becomes "Coach Lname". Redact possessives too: "Smith\'s" becomes "Lname\'s". Redact names wherever they appear, including the heading at the top of the paper (student name, teacher name), signatures, and names typed in all lowercase or all capitals.
+2. Email addresses, replaced with "[email]".
+3. Phone numbers, replaced with "[phone]".
+4. Street addresses, replaced with "[address]".
+
+Do NOT redact:
+- Names of historical figures, authors, characters in books, or public figures referenced as part of the assignment\'s subject matter (for example, "George Washington", "Harper Lee", "Atticus Finch").
+- The placeholders "Fname" and "Lname", which may already appear in the text - leave them exactly as they are.
+- Class names, school subjects, dates, place names (cities, states, countries) or the name of the school.
+
+Do not change, correct, rephrase, summarize, or remove any other part of the text - preserve the original wording, spelling, grammar, punctuation, line breaks and formatting exactly as given, except for the redactions described above. Do not add any commentary, explanation, notes, headings, or quotation marks around the output. Output ONLY the redacted text.
 
 TEXT TO REDACT:
 {$a}';
@@ -321,7 +349,7 @@ $string['privacy:metadata:aivision'] = 'When image input is turned on and an act
 $string['privacy:metadata:aivision:prompttext'] = 'The AI prompt: the activity instructions, the student\'s draft (and final) text, and the AI feedback already given.';
 $string['privacy:metadata:core_ai'] = 'AI Proofreader sends the student\'s draft and final text to the site\'s configured AI provider to generate feedback and a comparison.';
 $string['privacy:metadata:core_files'] = 'AI Proofreader stores uploaded Word document submissions using the Moodle file API.';
-$string['privacy:metadata:core_message'] = 'When a teacher returns a submission to draft status, AI Proofreader sends the student a Moodle notification (and, per the student\'s own notification preferences, an email) letting them know, with a link back to the activity.';
+$string['privacy:metadata:core_message'] = 'AI Proofreader sends Moodle notifications (and, per each user\'s own notification preferences, an email): to a student when a teacher returns their submission to draft status, and to a teacher when a student they already graded makes a final submission. Each includes a link back to the activity.';
 $string['privacy:metadata:google_drive'] = 'When a student submits their draft or final work as a Google Drive link, AI Proofreader sends the document\'s URL to Google Docs\' export endpoint to retrieve the document\'s content - as plain text for the AI, and as a Word copy used to show the teacher the student\'s formatting. No Moodle user identifier (name, email, or user ID) is sent to Google as part of this request - only the document URL the student provided.';
 $string['privacy:metadata:google_drive:docurl'] = 'The URL of the Google Doc the student submitted, sent so its content can be retrieved.';
 $string['q1overallfeedback'] = 'Was the overall feedback useful?';
@@ -333,6 +361,7 @@ $string['q4categoryhelped_both'] = 'Both equally';
 $string['q4categoryhelped_grammar'] = 'Grammar and Spelling';
 $string['q5confidence'] = 'How confident are you in your final version compared to your draft?';
 $string['readaloud'] = 'Read aloud';
+$string['regrade'] = 'Regrade';
 $string['resetsubmissions'] = 'Delete all AI Proofreader submissions, surveys, and grades';
 $string['retrybutton'] = 'Retry generating feedback';
 $string['returnedtodraft'] = '{$a}\'s submission has been returned to draft status.';
@@ -359,9 +388,11 @@ $string['settings_visionheading'] = 'Image input (vision model)';
 $string['settings_visionheading_desc'] = 'Moodle\'s AI subsystem can only send text. When this is turned on and an activity\'s instructions or Additional files contain images (PNG, JPEG, GIF or WebP), AI Proofreader sends the prompt and the images directly to the OpenAI-compatible endpoint below, which must be serving a vision-language model. Activities without images, and any image request that fails, still go through Moodle\'s AI subsystem as usual. These direct requests are not recorded in Moodle\'s AI usage reports.';
 $string['statusdraft'] = 'Not yet started';
 $string['statusfeedbackpending'] = 'Generating feedback';
-$string['statusfeedbackready'] = 'Feedback ready, awaiting final submission';
-$string['statusfinalsubmitted'] = 'Submitted, awaiting grade';
+$string['statusfeedbackready'] = 'Draft submitted, awaiting revision';
+$string['statusfinalsubmitted'] = 'Submitted final';
 $string['statusgraded'] = 'Graded';
+$string['statusgradedbeforesubmission'] = 'Graded before submission';
+$string['statussubmittedaftergrading'] = 'Submitted after grading';
 $string['stopreading'] = 'Stop reading';
 $string['studentsurveyheading'] = 'Student\'s survey responses';
 $string['submfile'] = 'File submission (Word documents only)';
@@ -370,6 +401,10 @@ $string['submissiontype'] = 'Submission type';
 $string['submissiontypes'] = 'Submission types';
 $string['submitdraft'] = 'Submit draft for feedback';
 $string['submitfinal'] = 'Submit final version';
+$string['submittedaftergradingmessage_body'] = '{$a->studentname} has submitted a final version of "{$a->activityname}" in {$a->coursename} after you had already entered a grade. Their current grade stays in the gradebook until you regrade it:
+{$a->url}';
+$string['submittedaftergradingmessage_subject'] = '{$a->studentname} submitted "{$a->activityname}" after grading';
+$string['submittedaftergradingnotice'] = '{$a} made this final submission after a grade had already been entered. The earlier grade and comments are loaded below and stay in the gradebook until you save a new grade.';
 $string['submtext'] = 'Online text';
 $string['surveyheading'] = 'Before you submit...';
 $string['task_redactpii'] = 'Redact PII from submission text';
@@ -377,6 +412,7 @@ $string['teacherfreetextlabel'] = 'Any concerns about the AI feedback? (optional
 $string['teacheroverviewheading'] = 'Student submissions';
 $string['teachersurveyheading'] = 'Teacher survey (required to save the grade)';
 $string['unsupportedfiletype'] = 'Unsupported file type: {$a}';
+$string['updategrade'] = 'Update grade';
 $string['visionapikey'] = 'API key';
 $string['visionapikey_desc'] = 'Sent as a Bearer token. Leave empty if the endpoint doesn\'t need one.';
 $string['visionenabled'] = 'Send images to the AI';

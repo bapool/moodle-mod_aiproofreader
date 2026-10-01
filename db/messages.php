@@ -35,4 +35,14 @@ $messageproviders = [
             'email' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
         ],
     ],
+    // Sent to the teacher who entered a grade when that student later makes
+    // their final submission (after "Grade now", or after a graded
+    // submission was returned to draft), so it can be regraded.
+    'submittedaftergrading' => [
+        'capability' => 'mod/aiproofreader:grade',
+        'defaults' => [
+            'popup' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+            'email' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+        ],
+    ],
 ];

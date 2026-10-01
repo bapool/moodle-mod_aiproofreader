@@ -81,3 +81,21 @@
 .path-mod-aiproofreader .aiproofreader-paper p {
     margin-top: 0;
 }
+
+/* Teacher "Student submissions" table: status badges sized like the core
+   Assignment grading table's status boxes rather than tiny pills, and
+   allowed to wrap on narrow screens. */
+.path-mod-aiproofreader .aiproofreader-submissions .aiproofreader-status {
+    font-size: 0.9rem;
+    font-weight: normal;
+    padding: 0.4em 0.6em;
+    white-space: normal;
+    text-align: left;
+}
+
+/* Keep each row's cells vertically centred so the buttons, badges, grade
+   and date line up with the profile picture. */
+.path-mod-aiproofreader .aiproofreader-submissions td {
+    vertical-align: middle;
+}
+

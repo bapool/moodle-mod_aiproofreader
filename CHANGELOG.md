@@ -2,6 +2,43 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.7.4 (2026100102)
+### Fixed
+- PII redaction missed names: it relied entirely on the AI guessing which words were names, and it sometimes replaced a student's first name but not their last name, and left teacher names (e.g. "Mrs. Smith" in an MLA heading) in place. The nightly task now replaces the names Moodle already knows **in code, before the AI sees the text**: the first, middle, alternate and last names of everyone enrolled in the course (student, classmates, teachers), as whole words, including each part of multi-part names and lowercase names after a title ("mrs. hope" becomes "mrs. Lname"). New `classes/local/pii_names.php`. Those names are therefore never sent to the AI at all. The AI then redacts anything else, the known names are applied once more to its output, and AI output that is far shorter or longer than the text sent (a summary, refusal or added commentary) is rejected and retried the next night.
+- Rewrote the redaction prompt (`piiredactionprompt`): redact both parts of a full name, keep titles but redact the name ("Mr. Lname"), possessives, headings and signatures, lowercase/all-caps names, leave existing Fname/Lname placeholders alone, don't redact book characters, places or the school; when unsure, redact.
+
+### Added
+- `cli/reset_redaction.php`: `--check` lists redacted drafts/finals that still contain the name of anyone enrolled in the course; `--reset` clears the redacted copies (never the original text) so the nightly task redoes them; both accept `--courseid`.
+
+## v0.7.3 (2026100101)
+### Changed
+- The teacher's "Student submissions" table now looks and behaves more like the core Assignment grading table, so it's familiar to teachers: it uses Moodle's `flexible_table` (new `classes/table/submissions_table.php`), with profile pictures linked to each student's profile, "First name / Last name" sort links, and sortable Status, Grade and Last submitted columns (Status sorts work needing the teacher first; rows with no grade or no submission always sort last). Statuses are coloured badges: green once graded, the theme's primary colour (orange) when the teacher needs to grade, light grey while the student hasn't started or is still working. New Grade column (point-graded activities only) shows the current grade, including a Grade now zero, and new Last submitted column shows when the student last submitted a draft or final version. Action buttons stay next to the name. Quick grading is deliberately not included, so the teacher survey and AI comparison review can't be skipped. New `lastsubmitted` string; badge styling in `styles.css`.
+- `statusfeedbackready` now reads "Draft submitted, awaiting revision".
+
+## v0.7.2 (2026100100)
+### Changed
+- Teacher overview: statuses are now plain text and every action is a button, so it's clear what to click. Work that needs grading gets an orange (primary) button - "Grade" next to "Submitted final" (renamed from "Submitted, awaiting grade") and "Regrade" next to "Submitted after grading". Everything else is brown (secondary): "Update grade" for graded work, "Return to draft", and "Grade now" / "Update grade" for students who haven't made a final submission.
+- "Grade now" has a hover tooltip explaining the student can still complete the assignment.
+- "Grade now" is only offered once the activity's due date has passed (or always, if there is no due date), so teachers aren't invited to enter zeros while students still have time. "Update grade" for an existing grade is always shown. `gradenow.php` enforces the same rule. New `aiproofreader_grade_now_available()` and `aiproofreader_render_grade_link()` (replaces `aiproofreader_render_regrade_link()`).
+
+## v0.7.1 (2026093001)
+### Added
+- The Grade now page shows the student's work so far, so a teacher can give partial credit for a draft: the draft (with the student's formatting and a link to the original file or Doc), the AI feedback once it's generated (or a note if it's still pending), and - for a submission that was returned to draft - the previous final version, collapsed.
+
+## v0.7.0 (2026093000)
+### Added
+- **Grade now**: a "Grade now" button on the teacher overview for any student who hasn't made a final submission, at any stage (including "Not yet started"). New `gradenow.php` and `classes/form/gradenow_form.php` collect a grade and instructor comments only - no teacher survey, since there's no work to judge. The grade is pushed to the gradebook immediately, but the student's workflow status is left alone, so the assignment stays open and the student can still complete it. Only offered for activities graded with points. New `submission_manager::save_grade_now()`.
+- New teacher overview statuses: "Graded before submission" (a grade exists but the student is still working; shows the current stage and an "Update grade" button) and "Submitted after grading" (the student made their final submission after being graded; shows a highlighted "Regrade" button plus "Return to draft").
+- Students with a grade but no final submission see their current grade, the teacher's comments, and a message that they can still complete the assignment and it will be regraded. After they submit, they're told their current grade stays until the teacher regrades.
+- The grading page shows a notice when a final submission was made after a grade was entered; the earlier grade and comments are preloaded.
+- New message provider `submittedaftergrading`: the teacher who entered the grade is notified when the student makes their final submission.
+
+### Changed
+- "Return to draft" on a graded submission now **keeps** the grade, instructor comments and teacher survey, and leaves the grade in the gradebook until the resubmitted version is regraded (previously it deleted them and nulled the gradebook entry). The confirmation warning now shows whenever a grade exists and says so.
+
+### Notes
+- No database changes. "Graded before submission" and "Submitted after grading" are derived from an `aiproofreader_grade` row existing while the submission status is not yet `graded`.
+
 ## v0.6.1 (2026092600)
 ### Added
 - Grade type "None" (Grade section, alongside "Point"), for activities that aren't graded. It is stored as a maximum of 0 points; Maximum points, Grade category and Grade to pass are hidden; no gradebook item is created (an existing one is switched to type "none"); the grading page collects instructor comments and the teacher survey without a grade field; and students see "Teacher review" instead of a grade. Assignment Import maps an Assignment with grade type None to it (previously this left Maximum points at 0, which could not be saved).

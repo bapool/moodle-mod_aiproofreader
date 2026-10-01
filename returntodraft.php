@@ -72,7 +72,7 @@ $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
 $message = get_string('confirmreturntodraft', 'aiproofreader', fullname($student));
-if ($submission->status === 'graded') {
+if ($DB->record_exists('aiproofreader_grade', ['submissionid' => $submission->id])) {
     $message .= ' ' . get_string('confirmreturntodraft_gradewarning', 'aiproofreader');
 }
 

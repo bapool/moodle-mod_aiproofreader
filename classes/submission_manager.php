@@ -360,6 +360,13 @@ class submission_manager {
         $submission->timemodified = time();
         $DB->update_record('aiproofreader_submission', $submission);
 
+        // A grade already exists (entered with "Grade now", or kept from
+        // before a return to draft): let that teacher know it needs regrading.
+        $earliergrade = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]);
+        if ($earliergrade) {
+            self::notify_submitted_after_grading($aiproofreader, $submission, $earliergrade);
+        }
+
         self::save_student_survey($submission, $surveydata);
         self::update_completion($aiproofreader, $submission);
 
@@ -638,14 +645,62 @@ class submission_manager {
     }
 
     /**
+     * Saves a grade for a student who has not made a final submission yet
+     * ("Grade now") - for example a zero for a student who refuses to do
+     * the assignment. Only the grade and instructor comments are stored:
+     * there is no teacher survey (there is no work to judge), and the
+     * student's workflow status is deliberately left alone, so the
+     * assignment stays open and the student can still complete it. When
+     * they do make their final submission, the teacher overview shows it as
+     * "Submitted after grading" so the teacher can regrade it; this grade
+     * stays in the gradebook until then.
+     *
+     * @param \stdClass $aiproofreader
+     * @param int $userid The student being graded
+     * @param int $graderid
+     * @param int $grade
+     * @param string $comments
+     * @param int $commentsformat
+     * @return \stdClass The student's submission record (created if the student never opened the activity)
+     */
+    public static function save_grade_now($aiproofreader, $userid, $graderid, $grade, $comments, $commentsformat) {
+        global $DB;
+
+        $submission = self::get_or_create($aiproofreader->id, $userid);
+
+        $graderecord = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]);
+        $isnewgrade = empty($graderecord);
+        if (!$graderecord) {
+            $graderecord = new \stdClass();
+            $graderecord->submissionid = $submission->id;
+        }
+        $graderecord->graderid = $graderid;
+        $graderecord->grade = $grade;
+        $graderecord->instructorcomments = $comments;
+        $graderecord->instructorcommentsformat = $commentsformat;
+        $graderecord->timemodified = time();
+
+        if ($isnewgrade) {
+            $DB->insert_record('aiproofreader_grade', $graderecord);
+        } else {
+            $DB->update_record('aiproofreader_grade', $graderecord);
+        }
+
+        aiproofreader_update_grades($aiproofreader, $userid);
+
+        return $submission;
+    }
+
+    /**
      * Returns a submitted (or already-graded) submission to the
      * feedback-ready stage so the student can revise and resubmit their
      * final version - they see their existing AI feedback again rather than
      * starting over from an empty draft. If the submission was already
-     * graded, the existing grade and teacher survey are cleared (they're
-     * no longer accurate once the final version is going to change) and
-     * the gradebook entry for this student is nulled out. The student's
-     * own survey answers are deliberately left in place so they can be
+     * graded, the existing grade, instructor comments and teacher survey are
+     * kept, and the grade stays in the gradebook, until the teacher regrades
+     * the resubmitted version (the teacher overview shows it as "Graded
+     * before submission" meanwhile, then "Submitted after grading"). The
+     * student's own survey answers are also left in place so they can be
      * shown pre-filled if the student resubmits.
      *
      * @param \stdClass $aiproofreader
@@ -654,15 +709,6 @@ class submission_manager {
      */
     public static function return_to_draft($aiproofreader, $submission) {
         global $DB;
-
-        if ($submission->status === 'graded') {
-            $DB->delete_records('aiproofreader_grade', ['submissionid' => $submission->id]);
-            $DB->delete_records('aiproofreader_teachersurvey', ['submissionid' => $submission->id]);
-
-            // No aiproofreader_grade row now exists for this student, so this
-            // nulls their gradebook entry rather than leaving a stale grade.
-            aiproofreader_update_grades($aiproofreader, $submission->userid);
-        }
 
         $submission->status = 'feedbackready';
         $submission->timemodified = time();
@@ -722,6 +768,61 @@ class submission_manager {
             message_send($message);
         } catch (\Throwable $e) {
             debugging('mod_aiproofreader: failed to notify student of return to draft: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+    }
+
+    /**
+     * Lets the teacher who entered a grade know that the student has now
+     * made their final submission, so it can be regraded. Sent via Moodle's
+     * messaging system like the return-to-draft notice. Failure here is
+     * logged but never blocks the student's submission.
+     *
+     * @param \stdClass $aiproofreader
+     * @param \stdClass $submission
+     * @param \stdClass $graderecord The existing aiproofreader_grade row
+     */
+    protected static function notify_submitted_after_grading($aiproofreader, $submission, $graderecord) {
+        global $USER;
+
+        try {
+            $cm = get_coursemodule_from_instance(
+                'aiproofreader',
+                $aiproofreader->id,
+                $aiproofreader->course,
+                false,
+                MUST_EXIST
+            );
+            $course = get_course($aiproofreader->course);
+            $url = new \moodle_url('/mod/aiproofreader/grade.php', ['id' => $cm->id, 'userid' => $submission->userid]);
+            $student = \core_user::get_user($submission->userid, '*', MUST_EXIST);
+
+            $a = (object) [
+                'studentname' => fullname($student),
+                'activityname' => format_string($aiproofreader->name),
+                'coursename' => format_string($course->fullname),
+                'url' => $url->out(false),
+            ];
+
+            $message = new \core\message\message();
+            $message->component = 'mod_aiproofreader';
+            $message->name = 'submittedaftergrading';
+            $message->userfrom = $USER;
+            $message->userto = $graderecord->graderid;
+            $message->subject = get_string('submittedaftergradingmessage_subject', 'aiproofreader', $a);
+            $message->fullmessage = get_string('submittedaftergradingmessage_body', 'aiproofreader', $a);
+            $message->fullmessageformat = FORMAT_PLAIN;
+            $message->fullmessagehtml = '';
+            $message->smallmessage = get_string('submittedaftergradingmessage_subject', 'aiproofreader', $a);
+            $message->notification = 1;
+            $message->contexturl = $a->url;
+            $message->contexturlname = $a->activityname;
+
+            message_send($message);
+        } catch (\Throwable $e) {
+            debugging(
+                'mod_aiproofreader: failed to notify teacher of submission after grading: ' . $e->getMessage(),
+                DEBUG_DEVELOPER
+            );
         }
     }
 

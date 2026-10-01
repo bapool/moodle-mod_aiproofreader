@@ -29,6 +29,14 @@ namespace mod_aiproofreader\task;
  * Scheduled task: redact PII from any draft/final submission text that
  * hasn't been redacted yet.
  *
+ * Names of everyone enrolled in the course are replaced in code first (see
+ * \mod_aiproofreader\local\pii_names), then the AI redacts any other names
+ * and contact details, then the known names are applied once more. AI output
+ * whose length is far from the original is rejected and retried.
+ *
+ * To redo every redaction (for example after improving these steps), clear
+ * the existing results with cli/reset_redaction.php.
+ *
  * The original text is never modified - the redacted copy is written to a
  * separate field, so the originals stay available for normal grading and a
  * mistake here is always recoverable. Progress is tracked per-row (via the
@@ -37,6 +45,12 @@ namespace mod_aiproofreader\task;
  * needing any extra bookkeeping.
  */
 class redact_pii extends \core\task\scheduled_task {
+    /** @var float Smallest acceptable length of the AI output, relative to the text sent. */
+    const MIN_LENGTH_RATIO = 0.8;
+
+    /** @var float Largest acceptable length of the AI output, relative to the text sent. */
+    const MAX_LENGTH_RATIO = 1.25;
+
     /**
      * Returns the name of this task, shown in the scheduled tasks admin UI.
      *
@@ -109,7 +123,17 @@ class redact_pii extends \core\task\scheduled_task {
             }
             $context = \context_module::instance($cm->id);
 
-            $prompt = get_string('piiredactionprompt', 'aiproofreader', $submission->$textfield);
+            // Step 1: replace the names Moodle already knows (everyone
+            // enrolled in the course - the student, classmates, teachers)
+            // in code, exactly. The AI can only guess at names, and those
+            // names are then never sent to the AI at all.
+            $knownnames = \mod_aiproofreader\local\pii_names::for_course($aiproofreader->course);
+            $original = (string) $submission->$textfield;
+            $prepared = \mod_aiproofreader\local\pii_names::apply($original, $knownnames);
+
+            // Step 2: the AI redacts anything else (family, friends, people
+            // outside the course, contact details).
+            $prompt = get_string('piiredactionprompt', 'aiproofreader', $prepared);
 
             try {
                 $action = new \core_ai\aiactions\generate_text(
@@ -132,6 +156,21 @@ class redact_pii extends \core\task\scheduled_task {
                     mtrace('  submission ' . $submission->id . ': AI returned empty content, will retry next run.');
                     continue;
                 }
+
+                // Step 3: the AI must return the same text with only names
+                // and contact details swapped. If it is far shorter or longer
+                // it summarized, rewrote, refused or added commentary -
+                // reject it and try again next run.
+                $ratio = \core_text::strlen($redacted) / max(1, \core_text::strlen($prepared));
+                if ($ratio < self::MIN_LENGTH_RATIO || $ratio > self::MAX_LENGTH_RATIO) {
+                    $failed++;
+                    mtrace('  submission ' . $submission->id . ': AI output length looks wrong (' . round($ratio, 2)
+                        . 'x the original), will retry next run.');
+                    continue;
+                }
+
+                // Step 4: re-apply the known names, in case the AI put any back.
+                $redacted = \mod_aiproofreader\local\pii_names::apply($redacted, $knownnames);
 
                 $count = substr_count($redacted, 'Fname')
                     + substr_count($redacted, 'Lname')
