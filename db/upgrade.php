@@ -358,7 +358,7 @@ function xmldb_aiproofreader_upgrade($oldversion) {
     }
 
     if ($oldversion < 2026101000) {
-        // "Finalize grade": marks a submission whose draft the teacher used as the final version.
+        // Finalize grade: marks a submission whose draft the teacher used as the final version.
         $table = new xmldb_table('aiproofreader_submission');
         $field = new xmldb_field('teacherfinalized', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'finalchanged');
         if (!$dbman->field_exists($table, $field)) {
