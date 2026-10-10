@@ -51,7 +51,7 @@ class backup_aiproofreader_activity_structure_step extends backup_activity_struc
             'initialsubmissiontype', 'initialtext', 'initialtexthtml', 'initialgdrivelink', 'initialtimesubmitted',
             'feedbackgrammar', 'feedbackassignment', 'feedbacktimecreated',
             'finalsubmissiontype', 'finaltext', 'finaltexthtml', 'finalgdrivelink', 'finaltimesubmitted',
-            'aicomparison', 'aicomparisontimecreated', 'aifollowedscore', 'finalchanged',
+            'aicomparison', 'aicomparisontimecreated', 'aifollowedscore', 'finalchanged', 'teacherfinalized',
             'timecreated', 'timemodified']);
 
         $studentsurveys = new backup_nested_element('studentsurveys');

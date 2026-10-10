@@ -87,6 +87,7 @@ if ($isgrader) {
 $submission = null;
 $draftform = null;
 $finalform = null;
+$surveyform = null;
 
 if (!$isgrader) {
     require_capability('mod/aiproofreader:submit', $context);
@@ -176,6 +177,32 @@ if (!$isgrader) {
                 }
             }
         }
+    } else if (
+        !empty($submission->teacherfinalized)
+        && in_array($submission->status, ['finalsubmitted', 'graded'])
+        && aiproofreader_survey_enabled()
+        && !$DB->record_exists('aiproofreader_studentsurvey', ['submissionid' => $submission->id])
+    ) {
+        // The teacher closed the assignment with "Finalize grade", so the
+        // student never reached the final form where the survey is normally
+        // collected. Offer the survey on its own; the work can't be changed.
+        $surveyform = new \mod_aiproofreader\form\survey_form($PAGE->url);
+        if ($data = $surveyform->get_data()) {
+            \mod_aiproofreader\submission_manager::save_survey_only($submission, [
+                'q1overallfeedback' => $data->q1overallfeedback ?? null,
+                'q2specificfeedback' => $data->q2specificfeedback ?? null,
+                'q3usedfeedback' => $data->q3usedfeedback ?? null,
+                'q4categoryhelped' => $data->q4categoryhelped ?? null,
+                'q5confidence' => $data->q5confidence ?? null,
+                'freetext' => $data->freetext ?? '',
+            ]);
+            redirect(
+                new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]),
+                get_string('surveythanks', 'aiproofreader'),
+                null,
+                \core\output\notification::NOTIFY_SUCCESS
+            );
+        }
     }
 }
 
@@ -249,6 +276,9 @@ if ($isgrader) {
         [$aiproofreader->id]
     );
 
+    // Moodle's confirmation popup, used by the "Finalize grade" button.
+    $PAGE->requires->js_amd_inline("require(['core/utility']);");
+
     $table = new \mod_aiproofreader\table\submissions_table($aiproofreader, $cm, $cangrade, $PAGE->url);
     $table->build($students, $byuserid, $grades);
 } else {
@@ -273,6 +303,24 @@ if ($isgrader) {
             echo format_text($earlygrade->instructorcomments, $earlygrade->instructorcommentsformat);
         }
         echo $OUTPUT->box_end();
+    }
+
+    // Closed by the teacher with "Finalize grade": the draft became the final version.
+    if (!empty($submission->teacherfinalized) && in_array($submission->status, ['finalsubmitted', 'graded'])) {
+        echo $OUTPUT->notification(
+            get_string('teacherfinalizednotice', 'aiproofreader'),
+            \core\output\notification::NOTIFY_WARNING,
+            false
+        );
+        if ($surveyform) {
+            echo $OUTPUT->notification(
+                get_string('teacherfinalizedsurveyprompt', 'aiproofreader'),
+                \core\output\notification::NOTIFY_INFO,
+                false
+            );
+            $PAGE->requires->js_call_amd('mod_aiproofreader/feedback', 'fixCategoryQuestionLayout');
+            $surveyform->display();
+        }
     }
 
     if (

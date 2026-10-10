@@ -356,6 +356,7 @@ class submission_manager {
         $submission->finalchanged = self::detect_final_changed($submission);
 
         $submission->finaltimesubmitted = time();
+        $submission->teacherfinalized = 0;
         $submission->status = 'finalsubmitted';
         $submission->timemodified = time();
         $DB->update_record('aiproofreader_submission', $submission);
@@ -507,10 +508,14 @@ class submission_manager {
         if (!isset($submission->finalchanged) || $submission->finalchanged === null) {
             $submission->finalchanged = self::detect_final_changed($submission);
         }
-        $changecheck = get_string(
-            $submission->finalchanged ? 'aiprompt_changecheck_changed' : 'aiprompt_changecheck_unchanged',
-            'aiproofreader'
-        );
+        if (!empty($submission->teacherfinalized)) {
+            $changecheckkey = 'aiprompt_changecheck_teacherfinalized';
+        } else if ($submission->finalchanged) {
+            $changecheckkey = 'aiprompt_changecheck_changed';
+        } else {
+            $changecheckkey = 'aiprompt_changecheck_unchanged';
+        }
+        $changecheck = get_string($changecheckkey, 'aiproofreader');
 
         $prompt = get_string('aiprompt_comparison', 'aiproofreader', (object) [
             'gradelevel' => $aiproofreader->gradelevel,
@@ -692,6 +697,91 @@ class submission_manager {
     }
 
     /**
+     * "Finalize grade": closes the assignment for a student who submitted a
+     * draft but never made a final submission, using the draft as the final
+     * version. Meant only for the end of a grading period, when the student
+     * can no longer turn in work for a grade. The draft (text, Google Doc
+     * link or uploaded file) is copied into the final fields, the
+     * submission is marked as finalized by the teacher, and the AI
+     * comparison runs as it would for a student's own final submission.
+     * The teacher then grades it on the normal grading page, survey
+     * included. The student can no longer change it, but can still answer
+     * the survey from the activity page.
+     *
+     * @param \stdClass $aiproofreader
+     * @param \stdClass $submission Must be in feedbackready status
+     * @param \context_module $context
+     * @return \stdClass The updated submission record
+     */
+    public static function finalize_draft($aiproofreader, $submission, \context_module $context) {
+        global $DB;
+
+        if ($submission->status !== 'feedbackready') {
+            throw new \moodle_exception('finalizenotavailable', 'aiproofreader');
+        }
+
+        $submission->finalsubmissiontype = $submission->initialsubmissiontype;
+        $submission->finaltext = $submission->initialtext;
+        $submission->finaltexthtml = $submission->initialtexthtml ?? null;
+        $submission->finalgdrivelink = $submission->initialgdrivelink;
+
+        // Copy the draft's file, if any, into the matching final file area so
+        // the grading page links to it like any other final submission.
+        $fileareas = ['draftsubmission' => 'finalsubmission', 'draftgdrivefile' => 'finalgdrivefile'];
+        $fs = get_file_storage();
+        foreach ($fileareas as $fromarea => $toarea) {
+            $fs->delete_area_files($context->id, 'mod_aiproofreader', $toarea, $submission->id);
+            $files = $fs->get_area_files($context->id, 'mod_aiproofreader', $fromarea, $submission->id, 'id', false);
+            foreach ($files as $file) {
+                $fs->create_file_from_storedfile(['filearea' => $toarea], $file);
+            }
+        }
+
+        // A Google Doc draft whose text was purged after the AI feedback
+        // (text retention off) is fetched again for the comparison.
+        if (
+            $submission->finalsubmissiontype === 'gdrive'
+            && empty($submission->finaltext)
+            && !empty($submission->finalgdrivelink)
+        ) {
+            $submission->finaltext = self::fetch_gdrive_text($submission->finalgdrivelink);
+            $submission->finaltexthtml = self::fetch_gdrive_html($submission->finalgdrivelink);
+        }
+        if ($submission->initialsubmissiontype === 'gdrive' && empty($submission->initialtext)) {
+            $submission->initialtext = $submission->finaltext;
+        }
+
+        $submission->finalchanged = 0;
+        $submission->teacherfinalized = 1;
+        $submission->finaltimesubmitted = time();
+        $submission->status = 'finalsubmitted';
+        $submission->timemodified = time();
+        $DB->update_record('aiproofreader_submission', $submission);
+
+        self::update_completion($aiproofreader, $submission);
+        self::generate_comparison($aiproofreader, $submission);
+
+        if (!aiproofreader_collect_gdrive_text()) {
+            $submission = $DB->get_record('aiproofreader_submission', ['id' => $submission->id]);
+            self::purge_gdrive_text_if_needed($submission);
+        }
+
+        return $DB->get_record('aiproofreader_submission', ['id' => $submission->id]);
+    }
+
+    /**
+     * Saves the student survey on its own, for a submission the teacher
+     * closed with "Finalize grade" (the student never reached the final
+     * submission form, where the survey is normally collected).
+     *
+     * @param \stdClass $submission
+     * @param array $surveydata
+     */
+    public static function save_survey_only($submission, array $surveydata) {
+        self::save_student_survey($submission, $surveydata);
+    }
+
+    /**
      * Returns a submitted (or already-graded) submission to the
      * feedback-ready stage so the student can revise and resubmit their
      * final version - they see their existing AI feedback again rather than
@@ -711,6 +801,7 @@ class submission_manager {
         global $DB;
 
         $submission->status = 'feedbackready';
+        $submission->teacherfinalized = 0;
         $submission->timemodified = time();
         $DB->update_record('aiproofreader_submission', $submission);
 

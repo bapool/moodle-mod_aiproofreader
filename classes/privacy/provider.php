@@ -76,6 +76,7 @@ class provider implements
                 'comparisonaimodel' => 'privacy:metadata:aiproofreader_submission:comparisonaimodel',
                 'aifollowedscore' => 'privacy:metadata:aiproofreader_submission:aifollowedscore',
                 'finalchanged' => 'privacy:metadata:aiproofreader_submission:finalchanged',
+                'teacherfinalized' => 'privacy:metadata:aiproofreader_submission:teacherfinalized',
                 'timecreated' => 'privacy:metadata:aiproofreader_submission:timecreated',
             ],
             'privacy:metadata:aiproofreader_submission'
@@ -269,6 +270,7 @@ class provider implements
                     'comparisonaimodel' => $submission->comparisonaimodel,
                     'aifollowedscore' => $submission->aifollowedscore,
                     'finalchanged' => $submission->finalchanged,
+                    'teacherfinalized' => $submission->teacherfinalized,
                 ];
 
                 $pluginname = get_string('pluginname', 'mod_aiproofreader');

@@ -64,6 +64,7 @@
         <FIELD NAME="comparisonaimodel" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Label identifying the AI model/provider that generated the comparison"/>
         <FIELD NAME="aifollowedscore" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated 1-5 score of how well the student followed the feedback, for the teacher"/>
         <FIELD NAME="finalchanged" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false" COMMENT="Whether the final text differs from the draft: 1 = changed, 0 = identical, null = could not be checked"/>
+        <FIELD NAME="teacherfinalized" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 if the teacher closed the assignment with Finalize grade, using the draft as the final version; 0 if the student made their own final submission (or has not yet)"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>

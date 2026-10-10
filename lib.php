@@ -627,6 +627,38 @@ function aiproofreader_render_grade_now_link($cmid, $userid, $hasgrade = false) 
 }
 
 /**
+ * Renders the "Finalize grade" button for a student who submitted a draft
+ * but never made a final submission. Clicking it asks for confirmation in
+ * a popup (Moodle's core confirmation modal) warning that it is only for
+ * closing the assignment at the end of a grading period; without
+ * JavaScript, the link opens the same warning as a confirmation page.
+ *
+ * @param int $cmid
+ * @param int $userid
+ * @param string $studentname
+ * @return string HTML
+ */
+function aiproofreader_render_finalize_link($cmid, $userid, $studentname) {
+    $url = new moodle_url('/mod/aiproofreader/finalize.php', ['id' => $cmid, 'userid' => $userid]);
+    $confirmurl = new moodle_url($url, ['confirm' => 1, 'sesskey' => sesskey()]);
+
+    return html_writer::link(
+        $url,
+        get_string('finalizegrade', 'aiproofreader'),
+        [
+            'class' => 'btn btn-secondary btn-sm aiproofreader-finalize',
+            'title' => get_string('finalizegradetooltip', 'aiproofreader'),
+            'data-confirmation' => 'modal',
+            'data-confirmation-type' => 'delete',
+            'data-confirmation-title-str' => json_encode(['finalizeconfirmtitle', 'aiproofreader']),
+            'data-confirmation-content-str' => json_encode(['finalizeconfirm', 'aiproofreader', $studentname]),
+            'data-confirmation-yes-button-str' => json_encode(['finalizeconfirmbutton', 'aiproofreader']),
+            'data-confirmation-destination' => $confirmurl->out(false),
+        ]
+    );
+}
+
+/**
  * Renders a button that opens the full grading page (grade.php) for a
  * student who has made a final submission. Work that needs grading
  * ("Grade", "Regrade") uses the primary style so it is the most visible

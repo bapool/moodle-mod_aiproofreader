@@ -161,7 +161,11 @@ if ($finalchanged === null) {
     // Submissions made before this check existed.
     $finalchanged = \mod_aiproofreader\submission_manager::detect_final_changed($submission);
 }
-if ($finalchanged === null) {
+if (!empty($submission->teacherfinalized)) {
+    // Closed by the teacher with "Finalize grade" - the draft is the final version.
+    $changedkey = 'finalchanged_teacherfinalized';
+    $changedtype = 'notifywarning';
+} else if ($finalchanged === null) {
     $changedkey = 'finalchanged_unknown';
     $changedtype = 'notifywarning';
 } else if ((int) $finalchanged === 1) {
@@ -169,7 +173,7 @@ if ($finalchanged === null) {
     $changedtype = 'notifysuccess';
 } else {
     $changedkey = 'finalchanged_no';
-    $changedtype = 'notifyproblem';
+    $changedtype = 'notifyinfo';
 }
 echo $OUTPUT->notification(
     html_writer::tag('strong', get_string('finalchangedheading', 'aiproofreader')) . ' '

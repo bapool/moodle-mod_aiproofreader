@@ -2,6 +2,24 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.8.0 (2026101000)
+### Added
+- **Finalize grade** (end of the grading period only). New button next to "Grade now" for a student who submitted a draft and received feedback but never made a final submission, shown under the same rule as Grade now (after the due date, or always if there is none). A confirmation popup (Moodle's core confirmation modal) warns that it is ONLY for the end of the grading period and that "Grade now", which leaves the assignment open, should be used while work can still be collected; without JavaScript, the same warning appears as a confirmation page. Confirming copies the draft (text, uploaded file or Google Doc) into the final submission, closes the assignment, runs the AI comparison and opens the normal grading page with the teacher survey. New `finalize.php`, `submission_manager::finalize_draft()`, `aiproofreader_render_finalize_link()`.
+- New `teacherfinalized` field on `aiproofreader_submission` (upgrade step 2026101000), included in backup/restore and the privacy export, so research reports can tell teacher-finalized drafts from genuine revisions. Cleared on a return to draft or a later student final submission.
+- Students whose work was finalized by the teacher see that it is graded and closed and can no longer be changed. If surveys are on and they have not answered one, the student survey is offered on its own (new `classes/form/survey_form.php`, `submission_manager::save_survey_only()`), so the grant data is still complete.
+- The AI comparison for a finalized draft is told the teacher closed the assignment, so it doesn't describe the student as having chosen not to revise (`aiprompt_changecheck_teacherfinalized`). The grading page shows "You closed the assignment with Finalize grade" instead of the change check.
+
+### Changed
+- The student survey fields and validation moved from `final_form` into a shared trait, `classes/form/student_survey_fields.php`, used by both the final form and the new survey-only form. No change to what students see on the final form.
+
+## v0.7.6 (2026100104)
+### Changed
+- Students no longer have to change their draft before submitting the final version. Previously an online-text final that matched the draft was rejected with "It looks like no changes were made to your draft"; teachers asked that a draft with no significant spelling or grammar problems be accepted as-is. The check is removed from `classes/form/final_form.php` and the unused `err_nochangesmade` string is deleted.
+- The AI comparison no longer scores an unchanged final as 1 automatically. It still states that no changes were made, then scores 4-5 if the feedback found nothing significant to fix, or 1-2 if genuinely required corrections were ignored (`aiprompt_changecheck_unchanged`).
+- Grading page: "No changes were made" is now an information notice instead of a red problem notice, with wording that explains an unchanged draft can be acceptable (`finalchanged_no`).
+- Google Drive / file upload final forms now say "If the feedback above found things to fix, make sure you have revised your document" instead of telling every student they must revise (`changesnotchecked_file`, `changesnotchecked_gdrive`).
+- New activity icon (`pix/monologo.svg`): a page with a checkmark and a small AI sparkle, so AI Proofreader is no longer identical to the core Assignment icon on the course page.
+
 ## v0.7.5 (2026100103)
 ### Fixed
 - The teacher's group selection didn't carry over: AI Proofreader had its own group dropdown and always opened on "All participants". It now supports groups (`FEATURE_GROUPS`, `FEATURE_GROUPINGS` - so the activity has the usual Group mode / Grouping settings) and uses Moodle's standard activity group selector, which remembers the selected group across the course: a group picked in a quiz or the gradebook is already selected here, and one picked here carries on elsewhere. Existing activities (created without a group mode) use the course's default group mode, or visible groups if it has none. In Separate groups mode, a teacher without "Access all groups" sees only their own groups' students, as in other activities.

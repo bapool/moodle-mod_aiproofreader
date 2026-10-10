@@ -156,7 +156,7 @@ class submissions_table extends \flexible_table {
                         $student,
                         ['courseid' => $this->cm->course, 'includefullname' => true, 'size' => 35]
                     ),
-                    'actions' => implode(' ', $this->action_buttons($student->id, $displaystatus, $gradenowavailable)),
+                    'actions' => implode(' ', $this->action_buttons($student, $displaystatus, $status, $gradenowavailable)),
                     'status' => $this->status_badge($displaystatus, $status),
                     'grade' => $hasgrade ? $grade . ' / ' . (int) $this->aiproofreader->grade : '-',
                     'lastsubmitted' => $lastsubmitted
@@ -179,20 +179,26 @@ class submissions_table extends \flexible_table {
      * The action buttons for one student. Primary (orange) buttons mark work
      * that needs grading; secondary (brown) buttons are everything else.
      *
-     * @param int $userid
+     * @param \stdClass $student
      * @param string $displaystatus
+     * @param string $status The underlying workflow status
      * @param bool $gradenowavailable
      * @return string[] HTML buttons
      */
-    protected function action_buttons($userid, $displaystatus, $gradenowavailable) {
+    protected function action_buttons($student, $displaystatus, $status, $gradenowavailable) {
         if (!$this->cangrade) {
             return [];
         }
 
         $cmid = $this->cm->id;
+        $userid = $student->id;
         switch ($displaystatus) {
             case 'gradedbeforesubmission':
-                return $this->ispointgraded ? [aiproofreader_render_grade_now_link($cmid, $userid, true)] : [];
+                $buttons = $this->ispointgraded ? [aiproofreader_render_grade_now_link($cmid, $userid, true)] : [];
+                if ($status === 'feedbackready' && $gradenowavailable) {
+                    $buttons[] = aiproofreader_render_finalize_link($cmid, $userid, fullname($student));
+                }
+                return $buttons;
             case 'submittedaftergrading':
                 return [
                     aiproofreader_render_grade_link($cmid, $userid, 'regrade', true),
@@ -207,6 +213,16 @@ class submissions_table extends \flexible_table {
                 return [
                     aiproofreader_render_grade_link($cmid, $userid, 'updategrade', false),
                     aiproofreader_render_return_to_draft_link($cmid, $userid),
+                ];
+            case 'feedbackready':
+                // Draft submitted, no final version: at the end of a grading
+                // period the teacher can also close it with "Finalize grade".
+                if (!$gradenowavailable) {
+                    return [];
+                }
+                return [
+                    aiproofreader_render_grade_now_link($cmid, $userid, false),
+                    aiproofreader_render_finalize_link($cmid, $userid, fullname($student)),
                 ];
             default:
                 return $gradenowavailable ? [aiproofreader_render_grade_now_link($cmid, $userid, false)] : [];
