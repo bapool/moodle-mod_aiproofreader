@@ -294,7 +294,10 @@ if ($isgrader) {
     if ($earlygrade && $submission->status !== 'finalsubmitted') {
         echo $OUTPUT->box_start('generalbox aiproofreader-earlygrade');
         echo $OUTPUT->notification(
-            get_string('earlygradenotice', 'aiproofreader', ['grade' => $earlygrade->grade, 'max' => $aiproofreader->grade]),
+            get_string('earlygradenotice', 'aiproofreader', [
+                'grade' => aiproofreader_format_grade($aiproofreader, $earlygrade->grade),
+                'max' => aiproofreader_format_grade($aiproofreader, $aiproofreader->grade),
+            ]),
             \core\output\notification::NOTIFY_INFO,
             false
         );
@@ -375,7 +378,10 @@ if ($isgrader) {
                 get_string(
                     'earlygradesubmittednotice',
                     'aiproofreader',
-                    ['grade' => $earlygrade->grade, 'max' => $aiproofreader->grade]
+                    [
+                        'grade' => aiproofreader_format_grade($aiproofreader, $earlygrade->grade),
+                        'max' => aiproofreader_format_grade($aiproofreader, $aiproofreader->grade),
+                    ]
                 ),
                 'notifysuccess'
             );
@@ -399,7 +405,10 @@ if ($isgrader) {
                 echo html_writer::tag('p', get_string(
                     'yourgrade',
                     'aiproofreader',
-                    ['grade' => $grade->grade, 'max' => $aiproofreader->grade]
+                    [
+                        'grade' => aiproofreader_format_grade($aiproofreader, $grade->grade),
+                        'max' => aiproofreader_format_grade($aiproofreader, $aiproofreader->grade),
+                    ]
                 ));
             }
             if (!empty($grade->instructorcomments)) {

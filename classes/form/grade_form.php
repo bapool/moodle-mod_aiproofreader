@@ -52,12 +52,11 @@ class grade_form extends \moodleform {
         // Ungraded activities (grade type "None") only collect comments and the survey.
         if ((int) $aiproofreader->grade > 0) {
             $mform->addElement(
-                'text',
+                'float',
                 'grade',
-                get_string('maximumgrade', 'aiproofreader') . ' (0-' . (int)$aiproofreader->grade . ')',
-                ['size' => '5']
+                get_string('gradeoutof', 'aiproofreader', aiproofreader_format_grade($aiproofreader, $aiproofreader->grade)),
+                ['size' => '6']
             );
-            $mform->setType('grade', PARAM_INT);
             $mform->addRule('grade', null, 'required', null, 'client');
         }
 
@@ -136,12 +135,18 @@ class grade_form extends \moodleform {
         $errors = parent::validation($data, $files);
         $aiproofreader = $this->_customdata['aiproofreader'];
 
-        if (
-            (int) $aiproofreader->grade > 0
-            && (!isset($data['grade']) || $data['grade'] === '' || !is_numeric($data['grade'])
-                || (int)$data['grade'] < 0 || (int)$data['grade'] > (int)$aiproofreader->grade)
-        ) {
-            $errors['grade'] = get_string('err_gradeoutofrange', 'aiproofreader', (int)$aiproofreader->grade);
+        // The float element has already turned the entry into a number (or
+        // false if it isn't one), honouring the user's decimal separator.
+        if ((int) $aiproofreader->grade > 0) {
+            $max = (float) $aiproofreader->grade;
+            $grade = $data['grade'] ?? null;
+            if (!is_numeric($grade) || $grade < 0 || $grade > $max) {
+                $errors['grade'] = get_string(
+                    'err_gradeoutofrange',
+                    'aiproofreader',
+                    aiproofreader_format_grade($aiproofreader, $max)
+                );
+            }
         }
 
         if (aiproofreader_survey_enabled()) {

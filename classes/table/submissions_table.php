@@ -127,7 +127,7 @@ class submissions_table extends \flexible_table {
         foreach ($students as $student) {
             $submission = $byuserid[$student->id] ?? null;
             $status = $submission ? $submission->status : 'draft';
-            $grade = ($submission && array_key_exists($submission->id, $grades)) ? $grades[$submission->id] : null;
+            $grade = ($submission && array_key_exists($submission->id, $grades)) ? (float) $grades[$submission->id] : null;
             $hasgrade = $grade !== null;
 
             // The status as the teacher sees it: a grade entered before the
@@ -158,7 +158,10 @@ class submissions_table extends \flexible_table {
                     ),
                     'actions' => implode(' ', $this->action_buttons($student, $displaystatus, $status, $gradenowavailable)),
                     'status' => $this->status_badge($displaystatus, $status),
-                    'grade' => $hasgrade ? $grade . ' / ' . (int) $this->aiproofreader->grade : '-',
+                    'grade' => $hasgrade
+                        ? aiproofreader_format_grade($this->aiproofreader, $grade) . ' / '
+                            . aiproofreader_format_grade($this->aiproofreader, $this->aiproofreader->grade)
+                        : '-',
                     'lastsubmitted' => $lastsubmitted
                         ? userdate($lastsubmitted, get_string('strftimedatetimeshort', 'langconfig'))
                         : '-',

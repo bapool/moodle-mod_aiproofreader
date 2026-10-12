@@ -368,5 +368,14 @@ function xmldb_aiproofreader_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026101000, 'aiproofreader');
     }
 
+    if ($oldversion < 2026101200) {
+        // Allow decimal grades (e.g. 87.5), stored the same way as assign_grades.grade.
+        $table = new xmldb_table('aiproofreader_grade');
+        $field = new xmldb_field('grade', XMLDB_TYPE_NUMBER, '10, 5', null, XMLDB_NOTNULL, null, '0', 'graderid');
+        $dbman->change_field_type($table, $field);
+
+        upgrade_mod_savepoint(true, 2026101200, 'aiproofreader');
+    }
+
     return true;
 }

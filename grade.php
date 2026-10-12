@@ -87,7 +87,7 @@ if ($data = $mform->get_data()) {
         $aiproofreader,
         $submission,
         $USER->id,
-        $data->grade ?? 0,
+        (float) ($data->grade ?? 0),
         $data->instructorcomments_editor['text'],
         $data->instructorcomments_editor['format'],
         $surveydata
@@ -101,7 +101,7 @@ if (!$mform->is_submitted()) {
     $existinggrade = $DB->get_record('aiproofreader_grade', ['submissionid' => $submission->id]);
     if ($existinggrade) {
         $preloaddata = [
-            'grade' => $existinggrade->grade,
+            'grade' => (float) $existinggrade->grade,
             'instructorcomments_editor' => [
                 'text' => $existinggrade->instructorcomments,
                 'format' => $existinggrade->instructorcommentsformat,

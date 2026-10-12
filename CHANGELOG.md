@@ -2,6 +2,19 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.8.2 (2026101201)
+### Changed
+- The built-in default for "Default AI instructions" (`defaultaiinstructions_default`) is now the October 2026 prompt, which until now existed only in the production site setting: the "writing tutor" rewrite with the "What you are reviewing" section, the grounding rule (report only errors that can be quoted word for word from the student's writing), Steps 1-3, up to five spelling errors with paragraph or sentence locations, bulleted lists, and a 75-word Grammar and Spelling limit. This replaces the September (v0.5.2) default, which still contained the "cemical" example that led the larger model to report misspellings that weren't in a student's paper.
+- Fixed a typo in the prompt's response format: "belleted" is now "bulleted".
+- Sites using the default can click "Restore to default" on the settings page to apply it. The "customized AI instructions" warning then clears.
+
+## v0.8.1 (2026101200)
+### Changed
+- Grades can now include decimals (for example 87.5), like other Moodle graded activities. The `aiproofreader_grade.grade` field changes from a whole number to a decimal number (10 digits, 5 decimal places - the same as core `assign_grades.grade`); upgrade step 2026101200 converts it with existing grades kept as they are.
+- The grading page and "Grade now" page use Moodle's `float` form element, so teachers can type a decimal grade using their own language's decimal separator. The field label is now "Grade out of {max}", as in Assignment.
+- Grades and maximum points are shown everywhere (teacher submissions table, student grade and "current grade" notices, the out-of-range error) with the same number of decimal places as the gradebook: the activity's grade item "Overall decimal points" setting, falling back to the course and then the site default (2 out of the box). New `aiproofreader_format_grade()` in `lib.php`.
+- Maximum points stays a whole number, the same as core Assignment.
+
 ## v0.8.0 (2026101000)
 ### Added
 - **Finalize grade** (end of the grading period only). New button next to "Grade now" for a student who submitted a draft and received feedback but never made a final submission, shown under the same rule as Grade now (after the due date, or always if there is none). A confirmation popup (Moodle's core confirmation modal) warns that it is ONLY for the end of the grading period and that "Grade now", which leaves the assignment open, should be used while work can still be collected; without JavaScript, the same warning appears as a confirmation page. Confirming copies the draft (text, uploaded file or Google Doc) into the final submission, closes the assignment, runs the AI comparison and opens the normal grading page with the teacher survey. New `finalize.php`, `submission_manager::finalize_draft()`, `aiproofreader_render_finalize_link()`.

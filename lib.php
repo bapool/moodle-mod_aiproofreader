@@ -1170,6 +1170,42 @@ function aiproofreader_delete_instance($id) {
 }
 
 /**
+ * Formats a grade (or the maximum points) for display the same way the
+ * gradebook does: with the number of decimal places set for this activity's
+ * grade item (Gradebook setup > Edit grade item > "Overall decimal points"),
+ * which falls back to the course setting and then the site default
+ * ($CFG->grade_decimalpoints, 2 out of the box). Uses the viewer's decimal
+ * separator, like the rest of Moodle.
+ *
+ * @param stdClass $aiproofreader Activity record (needs id and course)
+ * @param float|int|string $value The grade or maximum points
+ * @return string
+ */
+function aiproofreader_format_grade($aiproofreader, $value) {
+    global $CFG;
+    require_once($CFG->libdir . '/gradelib.php');
+
+    static $decimals = [];
+    $key = (int) $aiproofreader->id;
+    if (!array_key_exists($key, $decimals)) {
+        $gradeitem = $key ? grade_item::fetch([
+            'itemtype' => 'mod',
+            'itemmodule' => 'aiproofreader',
+            'iteminstance' => $key,
+            'courseid' => $aiproofreader->course,
+            'itemnumber' => 0,
+        ]) : false;
+        if ($gradeitem) {
+            $decimals[$key] = $gradeitem->get_decimals();
+        } else {
+            $decimals[$key] = (int) grade_get_setting($aiproofreader->course, 'decimalpoints', $CFG->grade_decimalpoints);
+        }
+    }
+
+    return format_float((float) $value, $decimals[$key]);
+}
+
+/**
  * Creates or updates the gradebook item for a mod_aiproofreader instance.
  *
  * @param stdClass $aiproofreader
@@ -1258,7 +1294,7 @@ function aiproofreader_update_grades($aiproofreader, $userid = 0, $nullifnone = 
     foreach ($records as $record) {
         $grade = new stdClass();
         $grade->userid     = $record->userid;
-        $grade->rawgrade   = $record->grade;
+        $grade->rawgrade   = (float) $record->grade;
         $grade->dategraded = $record->timemodified;
         $grades[$record->userid] = $grade;
     }

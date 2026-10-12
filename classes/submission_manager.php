@@ -580,7 +580,7 @@ class submission_manager {
      * @param \stdClass $aiproofreader
      * @param \stdClass $submission
      * @param int $graderid
-     * @param int $grade
+     * @param float $grade
      * @param string $comments
      * @param int $commentsformat
      * @param array $surveydata
@@ -604,7 +604,7 @@ class submission_manager {
             $graderecord->submissionid = $submission->id;
         }
         $graderecord->graderid = $graderid;
-        $graderecord->grade = $grade;
+        $graderecord->grade = (float) $grade;
         $graderecord->instructorcomments = $comments;
         $graderecord->instructorcommentsformat = $commentsformat;
         $graderecord->timemodified = time();
@@ -663,7 +663,7 @@ class submission_manager {
      * @param \stdClass $aiproofreader
      * @param int $userid The student being graded
      * @param int $graderid
-     * @param int $grade
+     * @param float $grade
      * @param string $comments
      * @param int $commentsformat
      * @return \stdClass The student's submission record (created if the student never opened the activity)
@@ -680,7 +680,7 @@ class submission_manager {
             $graderecord->submissionid = $submission->id;
         }
         $graderecord->graderid = $graderid;
-        $graderecord->grade = $grade;
+        $graderecord->grade = (float) $grade;
         $graderecord->instructorcomments = $comments;
         $graderecord->instructorcommentsformat = $commentsformat;
         $graderecord->timemodified = time();
