@@ -931,7 +931,7 @@ class submission_manager {
         }
     }
 
-        /**
+    /**
      * Fetches the plain-text content of a Google Doc.
      *
      * The doc is read through the Google Drive API as the OAuth 2 system
