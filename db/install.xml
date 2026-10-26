@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/aiproofreader/db" VERSION="20261012" COMMENT="XMLDB file for Moodle mod/aiproofreader"
+<XMLDB PATH="mod/aiproofreader/db" VERSION="20261013" COMMENT="XMLDB file for Moodle mod/aiproofreader"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -48,7 +48,13 @@
         <FIELD NAME="initialgdrivelink" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="initialtimesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="feedbackgrammar" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI feedback: Grammar and Spelling"/>
+        <FIELD NAME="feedbackgrammarredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of feedbackgrammar (AI Grammar and Spelling feedback) for de-identified release, populated by the nightly PII redaction task"/>
+        <FIELD NAME="feedbackgrammarredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When feedbackgrammarredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
+        <FIELD NAME="feedbackgrammarpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into feedbackgrammarredacted"/>
         <FIELD NAME="feedbackassignment" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI feedback: Assignment Specifics"/>
+        <FIELD NAME="feedbackassignmentredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of feedbackassignment (AI Assignment Specifics feedback) for de-identified release, populated by the nightly PII redaction task"/>
+        <FIELD NAME="feedbackassignmentredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When feedbackassignmentredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
+        <FIELD NAME="feedbackassignmentpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into feedbackassignmentredacted"/>
         <FIELD NAME="feedbacktimecreated" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="feedbackaimodel" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Label identifying the AI model/provider that generated the feedback"/>
         <FIELD NAME="finalsubmissiontype" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="text, file, or gdrive"/>
@@ -60,6 +66,9 @@
         <FIELD NAME="finalgdrivelink" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="finaltimesubmitted" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="aicomparison" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI analysis of whether feedback was followed"/>
+        <FIELD NAME="aicomparisonredacted" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-redacted copy of aicomparison (AI comparison) for de-identified release, populated by the nightly PII redaction task"/>
+        <FIELD NAME="aicomparisonredactedat" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="When aicomparisonredacted was generated; also the completion marker the nightly task uses to find unprocessed rows"/>
+        <FIELD NAME="aicomparisonpiicount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Number of PII placeholders inserted into aicomparisonredacted"/>
         <FIELD NAME="aicomparisontimecreated" TYPE="int" LENGTH="10" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="comparisonaimodel" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Label identifying the AI model/provider that generated the comparison"/>
         <FIELD NAME="aifollowedscore" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated 1-5 score of how well the student followed the feedback, for the teacher"/>

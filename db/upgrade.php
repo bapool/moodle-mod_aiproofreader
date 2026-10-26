@@ -377,5 +377,27 @@ function xmldb_aiproofreader_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026101200, 'aiproofreader');
     }
 
+    if ($oldversion < 2026101300) {
+        // De-identified copies of the AI feedback and AI comparison, filled in by
+        // the nightly PII redaction task. The feedback and comparison often quote
+        // the student's own sentences, so they can carry the same names as the
+        // writing itself.
+        $table = new xmldb_table('aiproofreader_submission');
+        foreach (['feedbackgrammar', 'feedbackassignment', 'aicomparison'] as $source) {
+            $fields = [
+                new xmldb_field($source . 'redacted', XMLDB_TYPE_TEXT, null, null, false, null, null, $source),
+                new xmldb_field($source . 'redactedat', XMLDB_TYPE_INTEGER, '10', null, false, null, null, $source . 'redacted'),
+                new xmldb_field($source . 'piicount', XMLDB_TYPE_INTEGER, '10', null, false, null, null, $source . 'redactedat'),
+            ];
+            foreach ($fields as $field) {
+                if (!$dbman->field_exists($table, $field)) {
+                    $dbman->add_field($table, $field);
+                }
+            }
+        }
+
+        upgrade_mod_savepoint(true, 2026101300, 'aiproofreader');
+    }
+
     return true;
 }

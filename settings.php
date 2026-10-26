@@ -120,6 +120,27 @@ if ($ADMIN->fulltree) {
     ));
 
     $settings->add(new admin_setting_heading(
+        'aiproofreader/gdriveheading',
+        get_string('gdriveheading', 'aiproofreader'),
+        get_string('gdriveheading_desc', 'aiproofreader')
+    ));
+
+    $issueroptions = [0 => get_string('gdriveissuer_none', 'aiproofreader')];
+    foreach (\core\oauth2\api::get_all_issuers() as $issuer) {
+        if ($issuer->get('enabled')) {
+            $issueroptions[$issuer->get('id')] = s($issuer->get('name'));
+        }
+    }
+
+    $settings->add(new admin_setting_configselect(
+        'aiproofreader/gdriveissuerid',
+        get_string('gdriveissuer', 'aiproofreader'),
+        get_string('gdriveissuer_desc', 'aiproofreader'),
+        0,
+        $issueroptions
+    ));
+
+    $settings->add(new admin_setting_heading(
         'aiproofreader/visionheading',
         get_string('settings_visionheading', 'aiproofreader'),
         get_string('settings_visionheading_desc', 'aiproofreader')

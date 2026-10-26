@@ -188,6 +188,25 @@ function aiproofreader_collect_gdrive_text() {
 }
 
 /**
+ * OAuth 2 system account scopes needed by this plugin.
+ *
+ * Moodle calls this when the system account for an issuer is connected or
+ * checked. When the issuer is the one chosen in the AI Proofreader settings,
+ * read-only Google Drive access is requested so submitted Google Doc links
+ * can be read as the system account instead of requiring public sharing.
+ *
+ * @param \core\oauth2\issuer $issuer
+ * @return string Space-separated scopes, or an empty string
+ */
+function aiproofreader_oauth2_system_scopes(\core\oauth2\issuer $issuer) {
+    $issuerid = (int) get_config('aiproofreader', 'gdriveissuerid');
+    if ($issuerid && (int) $issuer->get('id') === $issuerid) {
+        return 'https://www.googleapis.com/auth/drive.readonly';
+    }
+    return '';
+}
+
+/**
  * The site's current label for whichever AI model/provider is configured
  * (e.g. "GPT-4o", "Claude Sonnet 4.5 via Anthropic"). Moodle's AI subsystem
  * doesn't reliably report which model actually answered a request - that's

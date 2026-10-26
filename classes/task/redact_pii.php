@@ -26,8 +26,8 @@
 namespace mod_aiproofreader\task;
 
 /**
- * Scheduled task: redact PII from any draft/final submission text that
- * hasn't been redacted yet.
+ * Scheduled task: redact PII from any draft/final submission text, AI
+ * feedback or AI comparison that hasn't been redacted yet.
  *
  * Each text goes through \mod_aiproofreader\local\redactor: names of
  * everyone enrolled in the course and Google Docs/Drive links are replaced
@@ -70,24 +70,45 @@ class redact_pii extends \core\task\scheduled_task {
             $batchsize = 200;
         }
 
-        $this->redact_field($batchsize, 'initial');
-        $this->redact_field($batchsize, 'final');
+        foreach (self::get_source_fields() as $textfield => $label) {
+            $this->redact_field($batchsize, $textfield, $label);
+        }
     }
 
     /**
-     * Processes one batch of not-yet-redacted rows for either the draft
-     * ('initial') or final ('final') submission text.
+     * Every submission field that gets a de-identified copy, with a short
+     * label for log output. Each source field X has companion fields
+     * Xredacted (the copy), Xredactedat (when it was made) and Xpiicount
+     * (placeholders inserted).
+     *
+     * The AI feedback and AI comparison are included because they often
+     * quote the student's own sentences, so they can carry the same names.
+     *
+     * @return string[] source field => label
+     */
+    public static function get_source_fields(): array {
+        return [
+            'initialtext' => 'draft text',
+            'finaltext' => 'final text',
+            'feedbackgrammar' => 'grammar feedback',
+            'feedbackassignment' => 'assignment feedback',
+            'aicomparison' => 'AI comparison',
+        ];
+    }
+
+    /**
+     * Processes one batch of not-yet-redacted rows for one source field.
      *
      * @param int $batchsize Maximum rows to process in this call
-     * @param string $which 'initial' or 'final'
+     * @param string $textfield Source field, one of get_source_fields()
+     * @param string $which Label for log output
      */
-    protected function redact_field($batchsize, $which) {
+    protected function redact_field($batchsize, $textfield, $which) {
         global $DB;
 
-        $textfield = $which . 'text';
-        $redactedfield = $which . 'textredacted';
-        $redactedatfield = $which . 'textredactedat';
-        $countfield = $which . 'textpiicount';
+        $redactedfield = $textfield . 'redacted';
+        $redactedatfield = $textfield . 'redactedat';
+        $countfield = $textfield . 'piicount';
 
         $sql = "SELECT *
                   FROM {aiproofreader_submission}
@@ -146,7 +167,7 @@ class redact_pii extends \core\task\scheduled_task {
         $rs->close();
 
         mtrace(
-            'mod_aiproofreader: redacted ' . $which . ' text for ' . $processed
+            'mod_aiproofreader: redacted ' . $which . ' for ' . $processed
             . ' submission(s), ' . $failed . ' failure(s) left for next run.'
         );
     }

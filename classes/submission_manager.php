@@ -223,6 +223,14 @@ class submission_manager {
             $submission->feedbacktimecreated = time();
             $submission->feedbackaimodel = $result['modellabel'];
             $submission->status = 'feedbackready';
+
+            // New feedback: drop any de-identified copies of the old one so the
+            // nightly PII redaction task makes fresh ones.
+            foreach (['feedbackgrammar', 'feedbackassignment'] as $source) {
+                $submission->{$source . 'redacted'} = null;
+                $submission->{$source . 'redactedat'} = null;
+                $submission->{$source . 'piicount'} = null;
+            }
         } else {
             $errormessage = $result['error'] !== '' ? $result['error'] : get_string('aiunknownerror', 'aiproofreader');
             debugging('mod_aiproofreader: AI feedback generation unsuccessful: ' . $errormessage, DEBUG_DEVELOPER);
@@ -538,6 +546,12 @@ class submission_manager {
             $submission->aicomparison = $summary;
             $submission->aicomparisontimecreated = time();
             $submission->comparisonaimodel = $result['modellabel'];
+
+            // New comparison: drop any de-identified copy of the old one so the
+            // nightly PII redaction task makes a fresh one.
+            $submission->aicomparisonredacted = null;
+            $submission->aicomparisonredactedat = null;
+            $submission->aicomparisonpiicount = null;
         } else {
             // Comparison is a nice-to-have for the grader; grading can proceed without it.
             $errormessage = $result['error'] !== '' ? $result['error'] : get_string('aiunknownerror', 'aiproofreader');
@@ -917,12 +931,15 @@ class submission_manager {
         }
     }
 
-    /**
-     * Fetches the plain-text content of a Google Doc via its public export
-     * endpoint. Only works if the doc is shared as "Anyone with the link
-     * can view" (or comment/edit) - a private doc will return a Google
-     * sign-in page instead of the content, which this detects and treats
-     * as a failure rather than silently feeding garbage to the AI.
+        /**
+     * Fetches the plain-text content of a Google Doc.
+     *
+     * The doc is read through the Google Drive API as the OAuth 2 system
+     * account chosen in the plugin settings, so a doc shared only with
+     * people in the organization can be read. If that is not configured or
+     * fails, the public export URL is tried, which only works for a doc
+     * shared as "Anyone with the link". A Google sign-in page is detected
+     * and treated as a failure rather than silently feeding garbage to the AI.
      *
      * Public (and cached per URL) so form validation can check readability
      * before accepting a submission, without fetching the same doc twice.
@@ -935,47 +952,15 @@ class submission_manager {
             return self::$gdrivetextcache[$url];
         }
 
-        global $CFG;
-        require_once($CFG->libdir . '/filelib.php');
+        $docid = self::gdrive_doc_id($url);
+        $content = $docid ? self::gdrive_export($docid, 'txt', 15) : null;
 
-        if (!preg_match('#/document/d/([a-zA-Z0-9_-]+)#', $url, $matches)) {
-            self::$gdrivetextcache[$url] = null;
-            return null;
+        $result = null;
+        if ($content !== null) {
+            // Drive's plain-text export starts with a UTF-8 byte order mark.
+            $content = trim(preg_replace('/^\xEF\xBB\xBF/', '', $content));
+            $result = $content !== '' ? $content : null;
         }
-
-        $docid = $matches[1];
-        $exporturl = 'https://docs.google.com/document/d/' . $docid . '/export?format=txt';
-
-        try {
-            $curl = new \curl();
-            $curl->setopt([
-                'CURLOPT_TIMEOUT' => 15,
-                'CURLOPT_FOLLOWLOCATION' => true,
-                'CURLOPT_MAXREDIRS' => 5,
-            ]);
-            $content = $curl->get($exporturl);
-            $info = $curl->get_info();
-        } catch (\Throwable $e) {
-            debugging('mod_aiproofreader: Google Doc fetch failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
-            self::$gdrivetextcache[$url] = null;
-            return null;
-        }
-
-        if (empty($content) || (isset($info['http_code']) && (int)$info['http_code'] !== 200)) {
-            self::$gdrivetextcache[$url] = null;
-            return null;
-        }
-
-        // A private (not link-shareable) doc returns an HTML sign-in page,
-        // not the document text - detect and reject that rather than
-        // treating it as real content.
-        if (stripos($content, '<html') !== false || stripos($content, 'accounts.google.com') !== false) {
-            self::$gdrivetextcache[$url] = null;
-            return null;
-        }
-
-        $content = trim($content);
-        $result = $content !== '' ? $content : null;
 
         self::$gdrivetextcache[$url] = $result;
         return $result;
@@ -997,38 +982,22 @@ class submission_manager {
     }
 
     /**
-     * Downloads a link-shared Google Doc as .docx and converts it to HTML,
-     * so the teacher sees a snapshot of the student's formatting as it was
-     * when submitted (the live doc can keep changing afterwards).
+     * Downloads a Google Doc as .docx and converts it to HTML, so the
+     * teacher sees a snapshot of the student's formatting as it was when
+     * submitted (the live doc can keep changing afterwards).
      *
      * @param string $url
      * @return string|null
      */
     public static function fetch_gdrive_html($url) {
-        global $CFG;
-        require_once($CFG->libdir . '/filelib.php');
-
-        if (!preg_match('#/document/d/([a-zA-Z0-9_-]+)#', (string) $url, $matches)) {
+        $docid = self::gdrive_doc_id($url);
+        $content = $docid ? self::gdrive_export($docid, 'docx', 20) : null;
+        if ($content === null) {
             return null;
         }
 
-        $exporturl = 'https://docs.google.com/document/d/' . $matches[1] . '/export?format=docx';
         $tmp = tempnam(sys_get_temp_dir(), 'aiproofreader_');
-
         try {
-            $curl = new \curl();
-            $curl->setopt([
-                'CURLOPT_TIMEOUT' => 20,
-                'CURLOPT_FOLLOWLOCATION' => true,
-                'CURLOPT_MAXREDIRS' => 5,
-            ]);
-            $content = $curl->get($exporturl);
-            $info = $curl->get_info();
-
-            if (empty($content) || (isset($info['http_code']) && (int) $info['http_code'] !== 200)) {
-                return null;
-            }
-
             file_put_contents($tmp, $content);
             return document_parser::extract_html($tmp, 'export.docx');
         } catch (\Throwable $e) {
@@ -1037,6 +1006,113 @@ class submission_manager {
         } finally {
             @unlink($tmp);
         }
+    }
+
+    /**
+     * Extracts the Google Doc id from a submitted link.
+     *
+     * @param string $url
+     * @return string|null
+     */
+    protected static function gdrive_doc_id($url) {
+        if (preg_match('#/document/d/([a-zA-Z0-9_-]+)#', (string) $url, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    /**
+     * Downloads a Google Doc in the given format.
+     *
+     * Tries the Google Drive API first, signed in as the system account of
+     * the OAuth 2 service chosen in the plugin settings. Falls back to the
+     * public export URL if no service is chosen, the system account is not
+     * connected, or the API request fails (for example the doc is not
+     * shared with the system account).
+     *
+     * @param string $docid
+     * @param string $format txt|docx
+     * @param int $timeout Seconds
+     * @return string|null Raw file content, or null if it could not be read
+     */
+    protected static function gdrive_export($docid, $format, $timeout) {
+        global $CFG;
+        require_once($CFG->libdir . '/filelib.php');
+
+        $mimetypes = [
+            'txt' => 'text/plain',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+
+        $issuerid = (int) get_config('aiproofreader', 'gdriveissuerid');
+        if ($issuerid) {
+            try {
+                $issuer = \core\oauth2\api::get_issuer($issuerid);
+                $client = $issuer->get('enabled') ? \core\oauth2\api::get_system_oauth_client($issuer) : false;
+                if ($client) {
+                    $apiurl = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($docid) . '/export?'
+                        . http_build_query(['mimeType' => $mimetypes[$format]], '', '&');
+                    $client->setopt([
+                        'CURLOPT_TIMEOUT' => $timeout,
+                        'CURLOPT_CONNECTTIMEOUT' => 10,
+                    ]);
+                    $content = $client->get($apiurl);
+                    $info = $client->get_info();
+                    $httpcode = isset($info['http_code']) ? (int) $info['http_code'] : 0;
+                    if (!$client->get_errno() && $httpcode === 200 && self::is_valid_export($content, $format)) {
+                        return $content;
+                    }
+                    debugging(
+                        'mod_aiproofreader: Drive API export of ' . $docid . ' returned HTTP ' . $httpcode,
+                        DEBUG_DEVELOPER
+                    );
+                } else {
+                    debugging('mod_aiproofreader: OAuth 2 system account is not connected', DEBUG_DEVELOPER);
+                }
+            } catch (\Throwable $e) {
+                debugging('mod_aiproofreader: Drive API export failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            }
+        }
+
+        // Fallback: the public export URL, for docs shared as "Anyone with the link".
+        $exporturl = 'https://docs.google.com/document/d/' . rawurlencode($docid) . '/export?format=' . $format;
+        try {
+            $curl = new \curl();
+            $curl->setopt([
+                'CURLOPT_TIMEOUT' => $timeout,
+                'CURLOPT_FOLLOWLOCATION' => true,
+                'CURLOPT_MAXREDIRS' => 5,
+            ]);
+            $content = $curl->get($exporturl);
+            $info = $curl->get_info();
+        } catch (\Throwable $e) {
+            debugging('mod_aiproofreader: Google Doc fetch failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return null;
+        }
+
+        if (isset($info['http_code']) && (int) $info['http_code'] !== 200) {
+            return null;
+        }
+        return self::is_valid_export($content, $format) ? $content : null;
+    }
+
+    /**
+     * Whether downloaded content is a real export rather than an error or
+     * Google sign-in page.
+     *
+     * @param mixed $content
+     * @param string $format txt|docx
+     * @return bool
+     */
+    protected static function is_valid_export($content, $format) {
+        if (!is_string($content) || $content === '') {
+            return false;
+        }
+        if ($format === 'docx') {
+            // A .docx file is a zip archive, which always starts with "PK".
+            return strncmp($content, 'PK', 2) === 0;
+        }
+        return stripos($content, '<html') === false && stripos($content, 'accounts.google.com') === false;
     }
 
     /**

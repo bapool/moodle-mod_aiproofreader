@@ -2,6 +2,26 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.8.4 (2026102600)
+### Added
+- Pasted Google Doc links can now be read through the Google Drive API, signed in as Moodle's OAuth 2 system account, instead of only through the public export link. Students whose Google Workspace accounts cannot share "Anyone with the link" (for example middle school accounts limited to sharing inside the district) can now submit a doc shared with their organization ("anyone in your organization with the link"). Previously these submissions were rejected with "We could not read the content of your Google Doc" even though the doc was shared.
+- New site setting **Google OAuth 2 service** (`gdriveissuerid`, under a new "Google Drive links" heading). Default "None" keeps the old behaviour. Choosing a service and then reconnecting its system account (Site administration > Server > OAuth 2 services) grants read-only Google Drive access.
+- New `aiproofreader_oauth2_system_scopes()` callback in `lib.php`, which asks for `https://www.googleapis.com/auth/drive.readonly` only for the chosen service.
+- New helpers in `submission_manager`: `gdrive_doc_id()`, `gdrive_export()` (Drive API first, then the public export link as a fallback) and `is_valid_export()` (rejects Google sign-in pages and anything that isn't a real `.docx`).
+
+### Changed
+- `fetch_gdrive_text()` and `fetch_gdrive_html()` now both use `gdrive_export()`. The plain-text export's UTF-8 byte order mark is removed before the text is stored or sent to the AI.
+- The "could not read your Google Doc" message (`gdrivefetchfailed`) now tells students to share with their school (anyone in the organization with the link) or "Anyone with the link".
+- Privacy metadata (`privacy:metadata:google_drive`) now describes the Drive API request made as the system account.
+- Maturity changed from Beta to Stable.
+
+## v0.8.3 (2026101300)
+### Added
+- The nightly PII redaction task now also makes de-identified copies of the AI feedback and AI comparison, for the public research dataset. They often quote the student's own sentences, so they can carry the same names as the writing. New fields on `aiproofreader_submission` (upgrade step 2026101300): `feedbackgrammarredacted`, `feedbackassignmentredacted`, `aicomparisonredacted`, each with its own `...redactedat` and `...piicount`, filled the same way as `initialtextredacted` (known names in code, then the AI, then the checks). The originals are never changed.
+- When feedback or a comparison is regenerated, its old de-identified copy is cleared so the nightly task makes a fresh one.
+- `cli/reset_redaction.php` `--test`, `--check` and `--reset` cover the new copies. The list of fields lives in `redact_pii::get_source_fields()`.
+- Privacy provider declares and exports the new copies.
+
 ## v0.8.2 (2026101201)
 ### Changed
 - The built-in default for "Default AI instructions" (`defaultaiinstructions_default`) is now the October 2026 prompt, which until now existed only in the production site setting: the "writing tutor" rewrite with the "What you are reviewing" section, the grounding rule (report only errors that can be quoted word for word from the student's writing), Steps 1-3, up to five spelling errors with paragraph or sentence locations, bulleted lists, and a 75-word Grammar and Spelling limit. This replaces the September (v0.5.2) default, which still contained the "cemical" example that led the larger model to report misspellings that weren't in a student's paper.

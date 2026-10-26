@@ -18,7 +18,8 @@
  * Checks or resets the nightly PII redaction results.
  *
  * --test redacts one submission and prints every step without saving.
- * --check lists every redacted draft/final that still contains the name of
+ * --check lists every redacted copy (draft, final, AI feedback and AI
+ * comparison) that still contains the name of
  * anyone enrolled in its course, so you can see whether redaction is
  * working. --reset clears the redacted copies (never the student's original
  * text), so the nightly task redoes them - for example after the redaction
@@ -46,10 +47,11 @@ if ($unrecognized) {
 $help = "Check or reset AI Proofreader PII redaction results.
 
 Options:
--c, --check         List redacted drafts/finals that still contain the name of
-                    anyone enrolled in the course (student, classmate or teacher).
+-c, --check         List redacted copies (draft, final, AI feedback, AI
+                    comparison) that still contain the name of anyone enrolled
+                    in the course (student, classmate or teacher).
 -r, --reset         Clear the redacted copies so the nightly task redoes them.
-                    The students' original text is never changed.
+                    The original text and AI feedback are never changed.
 -t, --test=ID       Redact one submission (by submission id) and print the text
                     sent to the AI, the AI's answer and the result, WITHOUT
                     saving anything.
@@ -84,10 +86,11 @@ if ($options['test']) {
     $cm = get_coursemodule_from_instance('aiproofreader', $aiproofreader->id, $aiproofreader->course, false, MUST_EXIST);
     $context = context_module::instance($cm->id);
 
-    foreach (['initialtext' => 'DRAFT', 'finaltext' => 'FINAL'] as $field => $label) {
+    foreach (\mod_aiproofreader\task\redact_pii::get_source_fields() as $field => $label) {
         if ($submission->$field === null || trim($submission->$field) === '') {
             continue;
         }
+        $label = core_text::strtoupper($label);
         cli_writeln('');
         cli_writeln("==================== {$label} (submission {$submission->id}) ====================");
         $result = \mod_aiproofreader\local\redactor::redact(
@@ -120,7 +123,12 @@ if ($options['test']) {
 }
 
 if ($options['check']) {
-    $sql = "SELECT s.id, s.userid, s.initialtextredacted, s.finaltextredacted, a.course, a.name
+    $sources = \mod_aiproofreader\task\redact_pii::get_source_fields();
+    $redactedcolumns = '';
+    foreach (array_keys($sources) as $source) {
+        $redactedcolumns .= ", s.{$source}redacted";
+    }
+    $sql = "SELECT s.id, s.userid{$redactedcolumns}, a.course, a.name
               FROM {aiproofreader_submission} s
               JOIN {aiproofreader} a ON a.id = s.aiproofreaderid" . ($courseid ? ' WHERE a.course = :courseid' : '') . "
           ORDER BY a.course, a.id, s.id";
@@ -130,7 +138,8 @@ if ($options['check']) {
     $problems = 0;
     foreach ($rs as $row) {
         $names = \mod_aiproofreader\local\pii_names::for_course($row->course);
-        foreach (['initialtextredacted' => 'draft', 'finaltextredacted' => 'final'] as $field => $label) {
+        foreach ($sources as $source => $label) {
+            $field = $source . 'redacted';
             if ($row->$field === null || $row->$field === '') {
                 continue;
             }
@@ -149,9 +158,12 @@ if ($options['check']) {
 }
 
 if ($options['reset']) {
+    $sets = [];
+    foreach (array_keys(\mod_aiproofreader\task\redact_pii::get_source_fields()) as $source) {
+        $sets[] = "{$source}redacted = NULL, {$source}redactedat = NULL, {$source}piicount = NULL";
+    }
     $sql = "UPDATE {aiproofreader_submission}
-               SET initialtextredacted = NULL, initialtextredactedat = NULL, initialtextpiicount = NULL,
-                   finaltextredacted = NULL, finaltextredactedat = NULL, finaltextpiicount = NULL";
+               SET " . implode(",\n                   ", $sets);
     if ($courseid) {
         $sql .= " WHERE aiproofreaderid IN (SELECT id FROM {aiproofreader} WHERE course = :courseid)";
     }
