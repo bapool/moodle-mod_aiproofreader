@@ -282,6 +282,17 @@ if ($isgrader) {
     $table = new \mod_aiproofreader\table\submissions_table($aiproofreader, $cm, $cangrade, $PAGE->url);
     $table->build($students, $byuserid, $grades);
 } else {
+    // Returned to draft by the teacher: the student already made a final
+    // submission once, so it has a final submission time, but the status is
+    // back to feedbackready. The notice goes away once they submit again.
+    if ($submission->status === 'feedbackready' && !empty($submission->finaltimesubmitted)) {
+        echo $OUTPUT->notification(
+            get_string('returnedtodraftnotice', 'aiproofreader'),
+            \core\output\notification::NOTIFY_WARNING,
+            false
+        );
+    }
+
     echo aiproofreader_render_instructions($aiproofreader, $cm, $submission->status !== 'draft');
 
     // A grade entered before the final submission ("Grade now", or kept

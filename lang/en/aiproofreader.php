@@ -356,6 +356,7 @@ $string['returnedtodraftmessage_body'] = 'Your final submission for "{$a->activi
 Please review the feedback and submit a revised final version when you\'re ready:
 {$a->url}';
 $string['returnedtodraftmessage_subject'] = '"{$a->activityname}" was returned to draft';
+$string['returnedtodraftnotice'] = 'Your teacher has returned your final submission to draft status. Review the feedback below, revise your work, and submit your final version again.';
 $string['returntodraft'] = 'Return to draft';
 $string['reviewedheading'] = 'Teacher review';
 $string['savegrade'] = 'Save grade';

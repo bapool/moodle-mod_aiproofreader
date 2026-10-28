@@ -2,6 +2,10 @@
 
 All notable changes to AI Proofreader are documented here.
 
+## v0.8.5 (2026102800)
+### Added
+- Students whose final submission was returned to draft by their teacher now see a yellow notice at the top of the activity, above Assignment instructions: "Your teacher has returned your final submission to draft status..." (`returnedtodraftnotice`). Before, the only sign was the Moodle notification and email, so a student opening the activity page had no explanation for why their submission was open again. The notice shows while the submission is back at `feedbackready` and has a `finaltimesubmitted`, so it disappears once the student submits their final version again. No database changes.
+
 ## v0.8.4 (2026102600)
 ### Added
 - Pasted Google Doc links can now be read through the Google Drive API, signed in as Moodle's OAuth 2 system account, instead of only through the public export link. Students whose Google Workspace accounts cannot share "Anyone with the link" (for example middle school accounts limited to sharing inside the district) can now submit a doc shared with their organization ("anyone in your organization with the link"). Previously these submissions were rejected with "We could not read the content of your Google Doc" even though the doc was shared.

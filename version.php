@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026102600;      // YYYYMMDDXX.
+$plugin->version   = 2026102800;      // YYYYMMDDXX.
 $plugin->requires  = 2024042200;      // Moodle 4.5.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = 'v0.8.4';
+$plugin->release   = 'v0.8.5';
